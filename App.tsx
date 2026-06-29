@@ -2102,7 +2102,7 @@ function App() {
                 }`}
               >
                 <div className="p-1"><Icon name="LayoutGrid" size={18} /></div>
-                <span>置顶网站</span>
+                <span>所有网站</span>
               </button>
             </div>
             
@@ -2480,78 +2480,96 @@ function App() {
         {/* Content Scroll Area */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-8">
             
-            {/* 1. All Links Area */}
-            {pinnedLinks.length > 0 && !searchQuery && (selectedCategory === 'all') && (
+            {/* 1. Category Grid */}
+            {!searchQuery && (selectedCategory === 'all') && (
                 <section>
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-2">
                             <Globe size={16} className="text-blue-500" />
                             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                                 所有网站
                             </h2>
                             <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 rounded-full">
-                                {pinnedLinks.length}
+                                {links.length}
                             </span>
                         </div>
-                        {isSortingPinned ? (
-                            <div className="flex gap-2">
-                                <button 
-                                    onClick={savePinnedSorting}
-                                    className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-full transition-colors"
-                                    title="保存顺序"
-                                >
-                                    <Save size={14} />
-                                    <span>保存顺序</span>
-                                </button>
-                                <button 
-                                    onClick={cancelPinnedSorting}
-                                    className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium rounded-full hover:bg-slate-300 dark:hover:bg-slate-600 transition-all"
-                                    title="取消排序"
-                                >
-                                    取消
-                                </button>
-                            </div>
-                        ) : (
-                            <button 
-                                onClick={() => setIsSortingPinned(true)}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-full transition-colors"
-                                title="排序"
-                            >
-                                <GripVertical size={14} />
-                                <span>排序</span>
-                            </button>
-                        )}
                     </div>
-                    {isSortingPinned ? (
-                        <DndContext
-                            sensors={sensors}
-                            collisionDetection={closestCorners}
-                            onDragEnd={handlePinnedDragEnd}
-                        >
-                            <SortableContext
-                                items={pinnedLinks.map(link => link.id)}
-                                strategy={rectSortingStrategy}
-                            >
-                                <div className={`grid gap-3 ${
-                                  siteSettings.cardStyle === 'detailed' 
-                                    ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6' 
-                                    : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'
-                                }`}>
-                                    {pinnedLinks.map(link => (
-                                        <SortableLinkCard key={link.id} link={link} />
-                                    ))}
+                    
+                    <div className="space-y-6">
+                        {categories.filter(c => !c.parentId).map(category => {
+                            const isLocked = category.password && !unlockedCategoryIds.has(category.id);
+                            const categoryLinks = links.filter(l => 
+                                l.categoryId === category.id && 
+                                !isLocked &&
+                                (authToken || !l.private)
+                            );
+                            
+                            if (categoryLinks.length === 0) return null;
+                            
+                            const subCats = categories.filter(c => c.parentId === category.id);
+                            
+                            return (
+                                <div key={category.id}>
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Icon name={category.icon} size={18} className="text-blue-500" />
+                                        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                            {category.name}
+                                        </h3>
+                                        <span className="px-2 py-0.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 rounded-full">
+                                            {categoryLinks.length}
+                                        </span>
+                                        {isLocked && <Lock size={14} className="text-amber-500" />}
+                                    </div>
+                                    
+                                    <div className={`grid gap-3 ${
+                                      siteSettings.cardStyle === 'detailed' 
+                                        ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6' 
+                                        : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'
+                                    }`}>
+                                        {categoryLinks.map(link => renderLinkCard(link))}
+                                    </div>
+                                    
+                                    {subCats.length > 0 && (
+                                        <div className="mt-4 space-y-4 pl-6 border-l-2 border-slate-200 dark:border-slate-700">
+                                            {subCats.map(subCat => {
+                                                const subCatLocked = subCat.password && !unlockedCategoryIds.has(subCat.id);
+                                                const subCatLinks = links.filter(l => 
+                                                    l.categoryId === subCat.id && 
+                                                    !subCatLocked &&
+                                                    (authToken || !l.private)
+                                                );
+                                                
+                                                if (subCatLinks.length === 0) return null;
+                                                
+                                                return (
+                                                    <div key={subCat.id}>
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <Icon name={subCat.icon} size={14} className="text-slate-500" />
+                                                            <h4 className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                                                                {subCat.name}
+                                                            </h4>
+                                                            <span className="px-1.5 py-0.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full">
+                                                                {subCatLinks.length}
+                                                            </span>
+                                                            {subCatLocked && <Lock size={12} className="text-amber-500" />}
+                                                        </div>
+                                                        
+                                                        <div className={`grid gap-2 ${
+                                                          siteSettings.cardStyle === 'detailed' 
+                                                            ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6' 
+                                                            : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'
+                                                        }`}>
+                                                            {subCatLinks.map(link => renderLinkCard(link))}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
-                            </SortableContext>
-                        </DndContext>
-                    ) : (
-                        <div className={`grid gap-3 ${
-                          siteSettings.cardStyle === 'detailed' 
-                            ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6' 
-                            : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'
-                        }`}>
-                            {pinnedLinks.map(link => renderLinkCard(link))}
-                        </div>
-                    )}
+                            );
+                        })}
+                    </div>
                 </section>
             )}
 
