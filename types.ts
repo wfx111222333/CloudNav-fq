@@ -26,13 +26,8 @@ export interface SiteSettings {
   navTitle: string;
   favicon: string;
   cardStyle: 'detailed' | 'simple';
-  passwordExpiryDays: number;
-  iconSize?: number;
-  titleColor?: string;
-  titleSize?: number;
-  backgroundColor?: string;
-  backgroundImage?: string;
-  cardsPerRow?: number;
+  passwordExpiryDays: number; // 密码过期天数，0表示永久不退出
+  iconSize?: number; // 图标大小（像素），默认32
 }
 
 export interface AppState {

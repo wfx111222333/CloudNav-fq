@@ -105,12 +105,7 @@ function App() {
           favicon: '',
           cardStyle: 'detailed' as const,
           passwordExpiryDays: 7,
-          iconSize: 32,
-          titleColor: '',
-          titleSize: 14,
-          backgroundColor: '',
-          backgroundImage: '',
-          cardsPerRow: 4
+          iconSize: 32
       };
   });
   
@@ -1855,17 +1850,7 @@ function App() {
   const iconContainerSize = siteSettings.iconSize || 32;
   const iconImgSize = Math.round(iconContainerSize * 0.625);
 
-  const compressImageUrl = (url: string, size: number = 64): string => {
-    if (!url) return '';
-    if (url.includes('gstatic.cn')) {
-      return url.replace(/size=\d+/, `size=${size}`);
-    }
-    if (url.startsWith('data:')) {
-      return url;
-    }
-    return url;
-  };
-
+  // 创建可排序的链接卡片组件
   const SortableLinkCard = ({ link }: { link: LinkItem; key?: string }) => {
     const {
       attributes,
@@ -1876,6 +1861,7 @@ function App() {
       isDragging,
     } = useSortable({ id: link.id });
 
+    // 根据视图模式决定卡片样式
     const isDetailedView = siteSettings.cardStyle === 'detailed';
 
     const style = {
@@ -1884,9 +1870,6 @@ function App() {
       opacity: isDragging ? 0.5 : 1,
       zIndex: isDragging ? 1000 : 'auto',
     };
-
-    const titleColor = siteSettings.titleColor || (darkMode ? '#e2e8f0' : '#1e293b');
-    const titleSize = siteSettings.titleSize || 14;
 
     return (
       <div
@@ -1898,83 +1881,59 @@ function App() {
             : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
         } ${isDragging ? 'shadow-2xl scale-105' : ''} ${
           isDetailedView
-            ? 'flex flex-col items-center justify-center rounded-2xl border shadow-sm p-4 min-h-[120px] hover:border-green-400 dark:hover:border-green-500'
-            : 'flex flex-col items-center justify-center rounded-xl border shadow-sm p-3 hover:border-green-300 dark:hover:border-green-600'
+            ? 'flex flex-col rounded-2xl border shadow-sm p-4 min-h-[100px] hover:border-green-400 dark:hover:border-green-500'
+            : 'flex items-center rounded-xl border shadow-sm hover:border-green-300 dark:hover:border-green-600'
         }`}
         {...attributes}
         {...listeners}
       >
-        <div className={`flex flex-col items-center min-w-0 w-full ${
-          isDetailedView ? '' : ''
+        {/* 链接内容 - 移除a标签，改为div防止点击跳转 */}
+        <div className={`flex flex-1 min-w-0 overflow-hidden ${
+          isDetailedView ? 'flex-col' : 'items-center gap-3'
         }`}>
-          <div
-            style={{ width: iconContainerSize, height: iconContainerSize }}
-            className={`text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold uppercase shrink-0 mb-2 ${
-              isDetailedView ? 'rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800' : 'rounded-lg bg-slate-50 dark:bg-slate-700'
-            }`}>
-              {link.icon ? <img src={compressImageUrl(link.icon)} alt="" style={{ width: iconImgSize, height: iconImgSize }} /> : link.title.charAt(0)}
+          {/* 第一行：图标和标题水平排列 */}
+          <div className={`flex items-center gap-3 mb-2 ${
+            isDetailedView ? '' : 'w-full'
+          }`}>
+            {/* Icon */}
+            <div
+              style={{ width: iconContainerSize, height: iconContainerSize }}
+              className={`text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold uppercase shrink-0 ${
+                isDetailedView ? 'rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800' : 'rounded-lg bg-slate-50 dark:bg-slate-700'
+              }`}>
+                {link.icon ? <img src={link.icon} alt="" style={{ width: iconImgSize, height: iconImgSize }} /> : link.title.charAt(0)}
+            </div>
+            
+            {/* 标题 */}
+            <h3 className={`text-slate-900 dark:text-slate-100 truncate overflow-hidden text-ellipsis ${
+              isDetailedView ? 'text-base' : 'text-sm font-medium text-slate-800 dark:text-slate-200'
+            }`} title={link.title}>
+                {link.title}
+            </h3>
           </div>
           
-          <h3 
-            className={`truncate overflow-hidden text-ellipsis text-center w-full group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors ${
-              isDetailedView ? 'font-medium' : 'font-medium'
-            }`} 
-            title={link.title}
-            style={{ color: titleColor, fontSize: `${titleSize}px` }}
-          >
-              {link.title}
-          </h3>
-          
-          {isDetailedView && link.description && (
-            <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2 text-center mt-2">
-              {link.description}
-            </p>
-          )}
-          {!isDetailedView && link.description && (
-            <div className="tooltip-custom absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-[200px] bg-black text-white text-xs p-2 rounded opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all z-20 pointer-events-none">
-              {link.description}
-            </div>
-          )}
+          {/* 第二行：描述文字 */}
+             {isDetailedView && link.description && (
+               <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2">
+                 {link.description}
+               </p>
+             )}
         </div>
       </div>
     );
   };
 
-  const getGridColsClass = () => {
-    const cardsPerRow = siteSettings.cardsPerRow || 4;
-    const isDetailedView = siteSettings.cardStyle === 'detailed';
-    
-    if (isDetailedView) {
-      switch (cardsPerRow) {
-        case 3: return 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3';
-        case 4: return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4';
-        case 5: return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5';
-        case 6: return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6';
-        default: return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4';
-      }
-    } else {
-      switch (cardsPerRow) {
-        case 3: return 'grid-cols-2 md:grid-cols-3';
-        case 4: return 'grid-cols-2 md:grid-cols-4';
-        case 5: return 'grid-cols-2 md:grid-cols-4 lg:grid-cols-5';
-        case 6: return 'grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6';
-        default: return 'grid-cols-2 md:grid-cols-4';
-      }
-    }
-  };
-
   const renderLinkCard = (link: LinkItem) => {
     const isSelected = selectedLinks.has(link.id);
     
+    // 检查是否在有二级分类的一级分类页面下，且该站点未归属到二级分类
     const isUnassignedHighlight = selectedCategory !== 'all' && 
                                  !categories.find(c => c.id === selectedCategory)?.parentId && 
                                  link.categoryId === selectedCategory && 
                                  categories.some(c => c.parentId === selectedCategory);
 
+    // 根据视图模式决定卡片样式
     const isDetailedView = siteSettings.cardStyle === 'detailed';
-    
-    const titleColor = siteSettings.titleColor || (darkMode ? '#e2e8f0' : '#1e293b');
-    const titleSize = siteSettings.titleSize || 14;
     
     return (
       <div
@@ -1987,36 +1946,44 @@ function App() {
               : 'bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 border-slate-200 dark:border-slate-700'
         } ${isBatchEditMode ? 'cursor-pointer' : ''} ${
           isDetailedView 
-            ? 'flex flex-col items-center justify-center rounded-2xl border shadow-sm p-4 min-h-[120px] hover:border-blue-400 dark:hover:border-blue-500' 
-            : 'flex flex-col items-center justify-center rounded-xl border shadow-sm p-3 hover:border-blue-300 dark:hover:border-blue-600'
+            ? 'flex flex-col rounded-2xl border shadow-sm p-4 min-h-[100px] hover:border-blue-400 dark:hover:border-blue-500' 
+            : 'flex items-center justify-between rounded-xl border shadow-sm p-3 hover:border-blue-300 dark:hover:border-blue-600'
         }`}
         onClick={() => isBatchEditMode && toggleLinkSelection(link.id)}
         onContextMenu={(e) => handleContextMenu(e, link)}
       >
+        {/* 链接内容 - 在批量编辑模式下不使用a标签 */}
         {isBatchEditMode ? (
-          <div className={`flex flex-col items-center min-w-0 w-full ${
-            isDetailedView ? '' : ''
+          <div className={`flex flex-1 min-w-0 overflow-hidden h-full ${
+            isDetailedView ? 'flex-col' : 'items-center'
           }`}>
-            <div
-              style={{ width: iconContainerSize, height: iconContainerSize }}
-              className={`text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold uppercase shrink-0 mb-2 ${
-              isDetailedView ? 'rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800' : 'rounded-lg bg-slate-50 dark:bg-slate-700'
-            }`}>
-                {link.icon ? <img src={compressImageUrl(link.icon)} alt="" style={{ width: iconImgSize, height: iconImgSize }} /> : link.title.charAt(0)}
+            {/* 第一行：图标和标题水平排列 */}
+            <div className={`flex items-center gap-3 w-full`}>
+              {/* Icon */}
+              <div
+                style={{ width: iconContainerSize, height: iconContainerSize }}
+                className={`text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold uppercase shrink-0 ${
+                isDetailedView ? 'rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800' : 'rounded-lg bg-slate-50 dark:bg-slate-700'
+              }`}>
+                  {link.icon ? <img src={link.icon} alt="" style={{ width: iconImgSize, height: iconImgSize }} /> : link.title.charAt(0)}
+              </div>
+              
+              {/* 标题 */}
+              <h3 className={`text-slate-900 dark:text-slate-100 truncate overflow-hidden text-ellipsis ${
+                isDetailedView ? 'text-base' : 'text-sm font-medium text-slate-800 dark:text-slate-200'
+              }`} title={link.title}>
+                  {link.title}
+              </h3>
+              {link.private && (
+                <div className="flex-shrink-0">
+                  <EyeOff size={14} className="text-amber-500" title="私密链接" />
+                </div>
+              )}
             </div>
             
-            <h3 
-              className={`truncate overflow-hidden text-ellipsis text-center w-full ${
-                isDetailedView ? 'font-medium' : 'font-medium'
-              }`} 
-              title={link.title}
-              style={{ color: titleColor, fontSize: `${titleSize}px` }}
-            >
-                {link.title}
-            </h3>
-            
+            {/* 第二行：描述文字 */}
             {isDetailedView && link.description && (
-              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2 text-center mt-2">
+              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2">
                 {link.description}
               </p>
             )}
@@ -2027,43 +1994,54 @@ function App() {
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => handleLinkClick(link)}
-            className={`flex flex-col items-center min-w-0 w-full ${
-              isDetailedView ? '' : ''
+            className={`flex flex-1 min-w-0 overflow-hidden h-full ${
+              isDetailedView ? 'flex-col' : 'items-center'
             }`}
+            title={isDetailedView ? link.url : (link.description || link.url)} // 详情版视图只显示URL作为tooltip
           >
-            <div
-              style={{ width: iconContainerSize, height: iconContainerSize }}
-              className={`text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold uppercase shrink-0 mb-2 ${
-              isDetailedView ? 'rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800' : 'rounded-lg bg-slate-50 dark:bg-slate-700'
-            }`}>
-                {link.icon ? <img src={compressImageUrl(link.icon)} alt="" style={{ width: iconImgSize, height: iconImgSize }} /> : link.title.charAt(0)}
+            {/* 第一行：图标和标题水平排列 */}
+            <div className={`flex items-center gap-3 w-full`}>
+              {/* Icon */}
+              <div
+                style={{ width: iconContainerSize, height: iconContainerSize }}
+                className={`text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold uppercase shrink-0 ${
+                isDetailedView ? 'rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800' : 'rounded-lg bg-slate-50 dark:bg-slate-700'
+              }`}>
+                  {link.icon ? <img src={link.icon} alt="" style={{ width: iconImgSize, height: iconImgSize }} /> : link.title.charAt(0)}
+              </div>
+              
+              {/* 标题 */}
+                <h3 className={`text-slate-800 dark:text-slate-200 truncate whitespace-nowrap overflow-hidden text-ellipsis group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors ${
+                  isDetailedView ? 'text-base' : 'text-sm font-medium'
+                }`} title={link.title}>
+                    {link.title}
+                </h3>
+                {link.private && (
+                  <div className="flex-shrink-0">
+                    <EyeOff size={14} className="text-amber-500" title="私密链接" />
+                  </div>
+                )}
             </div>
             
-            <h3 
-              className={`truncate overflow-hidden text-ellipsis text-center w-full group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors ${
-                isDetailedView ? 'font-medium' : 'font-medium'
-              }`} 
-              title={link.title}
-              style={{ color: titleColor, fontSize: `${titleSize}px` }}
-            >
-                {link.title}
-            </h3>
-            
-            {isDetailedView && link.description && (
-              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2 text-center mt-2">
-                {link.description}
-              </p>
-            )}
+            {/* 第二行：描述文字 */}
+              {isDetailedView && link.description && (
+                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2">
+                  {link.description}
+                </p>
+              )}
             {!isDetailedView && link.description && (
-              <div className="tooltip-custom absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-[200px] bg-black text-white text-xs p-2 rounded opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all z-20 pointer-events-none">
+              <div className="tooltip-custom absolute left-0 -top-8 w-max max-w-[200px] bg-black text-white text-xs p-2 rounded opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all z-20 pointer-events-none truncate">
                 {link.description}
               </div>
             )}
           </a>
         )}
 
+        {/* Hover Actions (Absolute Right) - 在批量编辑模式下隐藏 */}
         {!isBatchEditMode && (
-          <div className={`flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-blue-50 dark:bg-blue-900/20 backdrop-blur-sm rounded-md p-1 absolute top-2 right-2`}>
+          <div className={`flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-blue-50 dark:bg-blue-900/20 backdrop-blur-sm rounded-md p-1 absolute ${
+            isDetailedView ? 'top-3 right-3' : 'top-1/2 -translate-y-1/2 right-2'
+          }`}>
               <button 
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingLink(link); setIsModalOpen(true); }}
                   className="p-1 text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md"
@@ -2081,7 +2059,7 @@ function App() {
 
   return (
     <div className="flex h-screen overflow-hidden text-slate-900 dark:text-slate-50">
-      <AuthModal isOpen={isAuthOpen} onLogin={handleLogin} onClose={() => setIsAuthOpen(false)} />
+      <AuthModal isOpen={isAuthOpen} onLogin={handleLogin} />
       
       <CategoryAuthModal 
         isOpen={!!catAuthModalData}
@@ -2347,16 +2325,7 @@ function App() {
       </aside>
 
       {/* Main Content */}
-      <main 
-        className="flex-1 flex flex-col h-full overflow-hidden relative"
-        style={{
-          backgroundColor: siteSettings.backgroundColor || undefined,
-          backgroundImage: siteSettings.backgroundImage ? `url(${siteSettings.backgroundImage})` : undefined,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        }}
-      >
+      <main className="flex-1 flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden relative">
         
         {/* Header */}
         <header className="h-16 px-4 lg:px-8 flex items-center justify-between bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 shrink-0">
@@ -2651,7 +2620,11 @@ function App() {
                                         {isLocked && <Lock size={14} className="text-amber-500" />}
                                     </div>
                                     
-                                    <div className={`grid gap-3 ${getGridColsClass()}`}>
+                                    <div className={`grid gap-3 ${
+                                      siteSettings.cardStyle === 'detailed' 
+                                        ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6' 
+                                        : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'
+                                    }`}>
                                         {categoryLinks.map(link => renderLinkCard(link))}
                                     </div>
                                     
@@ -2680,7 +2653,11 @@ function App() {
                                                             {subCatLocked && <Lock size={12} className="text-amber-500" />}
                                                         </div>
                                                         
-                                                        <div className={`grid gap-2 ${getGridColsClass()}`}>
+                                                        <div className={`grid gap-2 ${
+                                                          siteSettings.cardStyle === 'detailed' 
+                                                            ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6' 
+                                                            : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'
+                                                        }`}>
                                                             {subCatLinks.map(link => renderLinkCard(link))}
                                                         </div>
                                                     </div>
@@ -2753,7 +2730,11 @@ function App() {
                                 items={displayedLinks.map(link => link.id)}
                                 strategy={rectSortingStrategy}
                             >
-                                <div className={`grid gap-3 ${getGridColsClass()}`}>
+                                <div className={`grid gap-3 ${
+                                    siteSettings.cardStyle === 'detailed'
+                                        ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
+                                        : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'
+                                }`}>
                                     {displayedLinks.map(link => (
                                         <SortableLinkCard key={link.id} link={link} />
                                     ))}
@@ -2761,7 +2742,11 @@ function App() {
                             </SortableContext>
                         </DndContext>
                     ) : (
-                        <div className={`grid gap-3 ${getGridColsClass()}`}>
+                        <div className={`grid gap-3 ${
+                            siteSettings.cardStyle === 'detailed'
+                                ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
+                                : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'
+                        }`}>
                             {displayedLinks.map(link => renderLinkCard(link))}
                         </div>
                     )}
@@ -2999,7 +2984,11 @@ function App() {
                             </SortableContext>
                         </DndContext>
                     ) : (
-                        <div className={`grid gap-3 ${getGridColsClass()}`}>
+                        <div className={`grid gap-3 ${
+                          siteSettings.cardStyle === 'detailed' 
+                            ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6' 
+                            : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'
+                        }`}>
                             {displayedLinks.map(link => renderLinkCard(link))}
                         </div>
                     )
@@ -3039,7 +3028,11 @@ function App() {
                           </span>
                         </div>
 
-                        <div className={`grid gap-3 ${getGridColsClass()}`}>
+                        <div className={`grid gap-3 ${
+                          siteSettings.cardStyle === 'detailed' 
+                            ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6' 
+                            : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'
+                        }`}>
                           {linkArray.map(link => renderLinkCard(link))}
                         </div>
                       </div>

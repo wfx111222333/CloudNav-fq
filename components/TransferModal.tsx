@@ -29,19 +29,6 @@ const formatTime = (timestamp: number): string => {
   });
 };
 
-const compressImageUrl = (url: string, size: number = 128): string => {
-  if (!url) return '';
-  if (url.startsWith('data:')) {
-    return url;
-  }
-  const urlObj = new URL(url);
-  const ext = url.split('.').pop()?.toLowerCase();
-  if (ext === 'jpg' || ext === 'jpeg' || ext === 'png') {
-    return `${urlObj.origin}${urlObj.pathname}?width=${size}&height=${size}`;
-  }
-  return url;
-};
-
 export default function TransferModal({ isOpen, onClose, authToken }: TransferModalProps) {
   const [messages, setMessages] = useState<TransferMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -331,7 +318,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                           ) : message.type === 'image' ? (
                             <div className="relative">
                               <img
-                                src={compressImageUrl(message.content, 512)}
+                                src={message.content}
                                 alt={message.fileName}
                                 onClick={() => setPreviewImage(message.content)}
                                 className="max-w-sm max-h-64 object-contain rounded-xl cursor-pointer hover:opacity-90 transition-opacity"
@@ -542,10 +529,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
               </div>
             </div>
 
-            <div 
-              className="flex-1 overflow-y-auto p-4"
-              onClick={() => showMoveMenu && setShowMoveMenu(null)}
-            >
+            <div className="flex-1 overflow-y-auto p-4">
               {filteredFiles.length === 0 ? (
                 <div className="text-center py-12">
                   <Paperclip className="w-12 h-12 text-slate-300 mx-auto mb-4" />
@@ -564,7 +548,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                       <div className="flex flex-col items-center gap-2">
                         {message.type === 'image' ? (
                           <img
-                            src={compressImageUrl(message.content, 128)}
+                            src={message.content}
                             alt={message.fileName}
                             onClick={() => setPreviewImage(message.content)}
                             className="w-16 h-16 object-cover rounded-lg cursor-pointer"
@@ -582,15 +566,6 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
 
                       <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          onClick={() => {
-                            window.open(message.content, '_blank');
-                          }}
-                          className="p-1 bg-black/50 rounded text-white hover:bg-blue-500"
-                          title="下载"
-                        >
-                          <Download className="w-3 h-3" />
-                        </button>
-                        <button
                           onClick={() => setShowMoveMenu(showMoveMenu === message.id ? null : message.id)}
                           className="p-1 bg-black/50 rounded text-white hover:bg-black/70"
                           title="移动"
@@ -607,10 +582,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                       </div>
 
                       {showMoveMenu === message.id && (
-                        <div 
-                          className="absolute top-8 right-1 bg-white dark:bg-slate-700 rounded-lg shadow-lg border border-slate-200 dark:border-slate-600 z-10 min-w-[120px]"
-                          onClick={(e) => e.stopPropagation()}
-                        >
+                        <div className="absolute top-8 right-1 bg-white dark:bg-slate-700 rounded-lg shadow-lg border border-slate-200 dark:border-slate-600 z-10 min-w-[120px]">
                           <button
                             onClick={() => moveFile(message, '')}
                             className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-slate-600 rounded-t-lg"
@@ -640,7 +612,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                     >
                       {message.type === 'image' ? (
                         <img
-                          src={compressImageUrl(message.content, 128)}
+                          src={message.content}
                           alt={message.fileName}
                           onClick={() => setPreviewImage(message.content)}
                           className="w-10 h-10 object-cover rounded-lg cursor-pointer flex-shrink-0"
@@ -660,15 +632,6 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                         </p>
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
-                        <button
-                          onClick={() => {
-                            window.open(message.content, '_blank');
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors"
-                          title="下载"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>
                         <div className="relative">
                           <button
                             onClick={() => setShowMoveMenu(showMoveMenu === message.id ? null : message.id)}
@@ -678,10 +641,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                             <Move className="w-4 h-4" />
                           </button>
                           {showMoveMenu === message.id && (
-                            <div 
-                              className="absolute top-8 right-0 bg-white dark:bg-slate-700 rounded-lg shadow-lg border border-slate-200 dark:border-slate-600 z-10 min-w-[120px]"
-                              onClick={(e) => e.stopPropagation()}
-                            >
+                            <div className="absolute top-8 right-0 bg-white dark:bg-slate-700 rounded-lg shadow-lg border border-slate-200 dark:border-slate-600 z-10 min-w-[120px]">
                               <button
                                 onClick={() => moveFile(message, '')}
                                 className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-slate-600 rounded-t-lg"
@@ -700,6 +660,14 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                             </div>
                           )}
                         </div>
+                        <a
+                          href={message.content}
+                          download
+                          className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors"
+                          title="下载"
+                        >
+                          <Download className="w-4 h-4" />
+                        </a>
                         <button
                           onClick={() => deleteMessage(message)}
                           className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
