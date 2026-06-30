@@ -362,47 +362,45 @@ export default function NotesModal({ isOpen, onClose, authToken }: NotesModalPro
                   <XCircle className="w-4 h-4" />
                 </button>
               </div>
-              <div className="flex gap-3">
-                <textarea
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  className="flex-1 px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-800 dark:text-slate-100 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={3}
-                />
-                <div className="flex flex-col gap-2">
-                  <div className="flex gap-1 flex-wrap">
-                    {NOTE_COLORS.map(color => (
-                      <button
-                        key={color}
-                        onClick={() => setEditColor(color)}
-                        className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
-                          editColor === color ? 'border-blue-500 scale-110' : 'border-transparent'
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-800 dark:text-slate-100 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
+                rows={4}
+              />
+              <div className="flex items-center justify-between">
+                <div className="flex gap-2">
+                  {NOTE_COLORS.map(color => (
                     <button
-                      onClick={cancelEdit}
-                      className="flex-1 px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors"
-                    >
-                      取消
-                    </button>
-                    <button
-                      onClick={saveEdit}
-                      disabled={!editContent.trim()}
-                      className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
-                    >
-                      <Check className="w-4 h-4 inline-block mr-1" />
-                      保存
-                    </button>
-                  </div>
+                      key={color}
+                      onClick={() => setEditColor(color)}
+                      className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
+                        editColor === color ? 'border-blue-500 scale-110' : 'border-transparent'
+                      }`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={cancelEdit}
+                    className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={saveEdit}
+                    disabled={!editContent.trim()}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
+                  >
+                    <Check className="w-4 h-4 inline-block mr-1" />
+                    保存
+                  </button>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="flex gap-3">
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
               <textarea
                 value={newNoteContent}
                 onChange={(e) => setNewNoteContent(e.target.value)}
@@ -412,11 +410,11 @@ export default function NotesModal({ isOpen, onClose, authToken }: NotesModalPro
                   }
                 }}
                 placeholder="输入便签内容... (Ctrl+Enter 创建)"
-                className="flex-1 px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 placeholder-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                rows={3}
+                className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 placeholder-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
+                rows={4}
               />
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-1 flex-wrap">
+              <div className="flex items-center justify-between">
+                <div className="flex gap-2">
                   {NOTE_COLORS.map(color => (
                     <button
                       key={color}
@@ -431,7 +429,7 @@ export default function NotesModal({ isOpen, onClose, authToken }: NotesModalPro
                 <button
                   onClick={createNote}
                   disabled={!newNoteContent.trim()}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
                 >
                   <Plus className="w-4 h-4 inline-block mr-1" />
                   添加
