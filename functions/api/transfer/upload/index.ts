@@ -45,7 +45,8 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    
+    const folder = (formData.get('folder') as string) || '';
+
     if (!file) {
       return new Response(JSON.stringify({ error: 'No file uploaded' }), {
         status: 400,
@@ -77,6 +78,7 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
       fileSize: file.size,
       createdAt: Date.now(),
       sender: 'user',
+      folder: folder,
     };
     
     messages.push(newMessage);

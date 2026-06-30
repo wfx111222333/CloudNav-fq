@@ -68,7 +68,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       navTitle: siteSettings?.navTitle || 'CloudNav',
       favicon: siteSettings?.favicon || '',
       cardStyle: siteSettings?.cardStyle || 'detailed',
-      passwordExpiryDays: siteSettings?.passwordExpiryDays ?? 7
+      passwordExpiryDays: siteSettings?.passwordExpiryDays ?? 7,
+      iconSize: siteSettings?.iconSize ?? 32
   }));
   
   const [generatedIcons, setGeneratedIcons] = useState<string[]>([]);
@@ -102,7 +103,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           title: siteSettings?.title || 'CloudNav - 我的导航',
           navTitle: siteSettings?.navTitle || 'CloudNav',
           favicon: siteSettings?.favicon || '',
-          cardStyle: siteSettings?.cardStyle || 'detailed'
+          cardStyle: siteSettings?.cardStyle || 'detailed',
+          passwordExpiryDays: siteSettings?.passwordExpiryDays ?? 7,
+          iconSize: siteSettings?.iconSize ?? 32
       };
       setLocalSiteSettings(safeSettings);
       if (generatedIcons.length === 0) {
@@ -126,12 +129,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleSiteChange = async (key: keyof SiteSettings, value: any) => {
     setLocalSiteSettings(prev => {
         const next = { ...prev, [key]: value };
-        
-        // 如果是身份验证过期天数修改，立即保存到 KV 空间
-        if (key === 'passwordExpiryDays' && authToken) {
+
+        // 身份验证过期天数和图标大小修改时立即保存到 KV 空间
+        if ((key === 'passwordExpiryDays' || key === 'iconSize') && authToken) {
             saveWebsiteConfigToKV(next);
         }
-        
+
         return next;
     });
   };
@@ -1127,6 +1130,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     />
                                 </div>
                                 <p className="text-xs text-slate-500 mt-1">设置为 0 表示永久不退出，默认 7 天后自动退出</p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">网站图标大小</label>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="range"
+                                        min="24"
+                                        max="48"
+                                        value={localSiteSettings.iconSize ?? 32}
+                                        onChange={(e) => handleSiteChange('iconSize', parseInt(e.target.value))}
+                                        className="flex-1 accent-blue-500"
+                                    />
+                                    <span className="text-sm text-slate-600 dark:text-slate-400 w-12 text-right">{localSiteSettings.iconSize ?? 32}px</span>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-1">拖动滑块调整网站图标的显示大小（24-48像素）</p>
                             </div>
                         </div>
                     </div>

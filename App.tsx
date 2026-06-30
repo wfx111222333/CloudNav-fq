@@ -104,7 +104,8 @@ function App() {
           navTitle: 'CloudNav',
           favicon: '',
           cardStyle: 'detailed' as const,
-          passwordExpiryDays: 7
+          passwordExpiryDays: 7,
+          iconSize: 32
       };
   });
   
@@ -133,6 +134,7 @@ function App() {
   // Sort State
   const [isSortingMode, setIsSortingMode] = useState<string | null>(null); // 存储正在排序的分类ID，null表示不在排序模式
   const [isSortingPinned, setIsSortingPinned] = useState(false); // 是否正在排序置顶链接
+  const [allSortMode, setAllSortMode] = useState<'category' | 'name' | 'date' | 'frequency' | 'manual'>('category');
   
   // Batch Edit State
   const [isBatchEditMode, setIsBatchEditMode] = useState(false); // 是否处于批量编辑模式
@@ -593,7 +595,8 @@ function App() {
                         navTitle: websiteConfigData.navTitle || prev.navTitle,
                         favicon: websiteConfigData.favicon || prev.favicon,
                         cardStyle: websiteConfigData.cardStyle || prev.cardStyle,
-                        passwordExpiryDays: websiteConfigData.passwordExpiryDays !== undefined ? websiteConfigData.passwordExpiryDays : prev.passwordExpiryDays
+                        passwordExpiryDays: websiteConfigData.passwordExpiryDays !== undefined ? websiteConfigData.passwordExpiryDays : prev.passwordExpiryDays,
+                        iconSize: websiteConfigData.iconSize || prev.iconSize
                     }));
                 }
             }
@@ -738,6 +741,31 @@ function App() {
     const newSiteSettings = { ...siteSettings, cardStyle };
     setSiteSettings(newSiteSettings);
     localStorage.setItem('cloudnav_site_settings', JSON.stringify(newSiteSettings));
+    if (authToken) {
+      fetch('/api/storage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-auth-password': authToken },
+        body: JSON.stringify({ saveConfig: 'website', config: newSiteSettings })
+      }).catch(e => console.error('Failed to save cardStyle to KV:', e));
+    }
+  };
+
+  // 链接点击统计（防抖同步 KV）
+  const clickSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleLinkClick = (link: LinkItem) => {
+    setLinks(prev => {
+      const updated = prev.map(l => l.id === link.id ? { ...l, clickCount: (l.clickCount || 0) + 1 } : l);
+      const newLinks = updated;
+      const newCategories = categories;
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ links: newLinks, categories: newCategories }));
+      if (authToken) {
+        if (clickSyncTimer.current) clearTimeout(clickSyncTimer.current);
+        clickSyncTimer.current = setTimeout(() => {
+          syncToCloud(newLinks, newCategories, authToken);
+        }, 1500);
+      }
+      return updated;
+    });
   };
 
   // --- Batch Edit Functions ---
@@ -835,7 +863,8 @@ function App() {
                             navTitle: websiteConfigData.navTitle || prev.navTitle,
                             favicon: websiteConfigData.favicon || prev.favicon,
                             cardStyle: websiteConfigData.cardStyle || prev.cardStyle,
-                            passwordExpiryDays: websiteConfigData.passwordExpiryDays !== undefined ? websiteConfigData.passwordExpiryDays : prev.passwordExpiryDays
+                            passwordExpiryDays: websiteConfigData.passwordExpiryDays !== undefined ? websiteConfigData.passwordExpiryDays : prev.passwordExpiryDays,
+                            iconSize: websiteConfigData.iconSize || prev.iconSize
                         }));
                     }
                 }
@@ -1745,13 +1774,26 @@ function App() {
       const subCategoryIds = categories.filter(c => c.parentId === selectedCategory).map(c => c.id);
       result = result.filter(l => l.categoryId === selectedCategory || subCategoryIds.includes(l.categoryId));
     }
-    
+
+    // 全站排序模式
+    if (selectedCategory === 'all' && !searchQuery.trim() && allSortMode !== 'category' && allSortMode !== 'manual') {
+      if (allSortMode === 'name') {
+        return result.sort((a, b) => a.title.localeCompare(b.title, 'zh-CN'));
+      }
+      if (allSortMode === 'date') {
+        return result.sort((a, b) => b.createdAt - a.createdAt);
+      }
+      if (allSortMode === 'frequency') {
+        return result.sort((a, b) => (b.clickCount || 0) - (a.clickCount || 0));
+      }
+    }
+
     return result.sort((a, b) => {
       const aOrder = a.order !== undefined ? a.order : a.createdAt;
       const bOrder = b.order !== undefined ? b.order : b.createdAt;
       return aOrder - bOrder;
     });
-  }, [links, selectedCategory, searchQuery, categories, unlockedCategoryIds, authToken]);
+  }, [links, selectedCategory, searchQuery, categories, unlockedCategoryIds, authToken, allSortMode]);
 
   // 计算其他目录的搜索结果
   const otherCategoryResults = useMemo(() => {
@@ -1805,6 +1847,9 @@ function App() {
 
   // --- Render Components ---
 
+  const iconContainerSize = siteSettings.iconSize || 32;
+  const iconImgSize = Math.round(iconContainerSize * 0.625);
+
   // 创建可排序的链接卡片组件
   const SortableLinkCard = ({ link }: { link: LinkItem; key?: string }) => {
     const {
@@ -1815,10 +1860,10 @@ function App() {
       transition,
       isDragging,
     } = useSortable({ id: link.id });
-    
+
     // 根据视图模式决定卡片样式
     const isDetailedView = siteSettings.cardStyle === 'detailed';
-    
+
     const style = {
       transform: CSS.Transform.toString(transform),
       transition: isDragging ? 'none' : transition,
@@ -1832,11 +1877,11 @@ function App() {
         style={style}
         className={`group relative transition-all duration-200 cursor-grab active:cursor-grabbing min-w-0 max-w-full overflow-hidden hover:shadow-lg hover:shadow-green-100/50 dark:hover:shadow-green-900/20 ${
           isSortingMode || isSortingPinned
-            ? 'bg-green-20 dark:bg-green-900/30 border-green-200 dark:border-green-800' 
+            ? 'bg-green-20 dark:bg-green-900/30 border-green-200 dark:border-green-800'
             : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
         } ${isDragging ? 'shadow-2xl scale-105' : ''} ${
-          isDetailedView 
-            ? 'flex flex-col rounded-2xl border shadow-sm p-4 min-h-[100px] hover:border-green-400 dark:hover:border-green-500' 
+          isDetailedView
+            ? 'flex flex-col rounded-2xl border shadow-sm p-4 min-h-[100px] hover:border-green-400 dark:hover:border-green-500'
             : 'flex items-center rounded-xl border shadow-sm hover:border-green-300 dark:hover:border-green-600'
         }`}
         {...attributes}
@@ -1851,10 +1896,12 @@ function App() {
             isDetailedView ? '' : 'w-full'
           }`}>
             {/* Icon */}
-            <div className={`text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold uppercase shrink-0 ${
-              isDetailedView ? 'w-8 h-8 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800' : 'w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-700'
-            }`}>
-                {link.icon ? <img src={link.icon} alt="" className="w-5 h-5"/> : link.title.charAt(0)}
+            <div
+              style={{ width: iconContainerSize, height: iconContainerSize }}
+              className={`text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold uppercase shrink-0 ${
+                isDetailedView ? 'rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800' : 'rounded-lg bg-slate-50 dark:bg-slate-700'
+              }`}>
+                {link.icon ? <img src={link.icon} alt="" style={{ width: iconImgSize, height: iconImgSize }} /> : link.title.charAt(0)}
             </div>
             
             {/* 标题 */}
@@ -1913,10 +1960,12 @@ function App() {
             {/* 第一行：图标和标题水平排列 */}
             <div className={`flex items-center gap-3 w-full`}>
               {/* Icon */}
-              <div className={`text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold uppercase shrink-0 ${
-                isDetailedView ? 'w-8 h-8 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800' : 'w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-700'
+              <div
+                style={{ width: iconContainerSize, height: iconContainerSize }}
+                className={`text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold uppercase shrink-0 ${
+                isDetailedView ? 'rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800' : 'rounded-lg bg-slate-50 dark:bg-slate-700'
               }`}>
-                  {link.icon ? <img src={link.icon} alt="" className="w-5 h-5"/> : link.title.charAt(0)}
+                  {link.icon ? <img src={link.icon} alt="" style={{ width: iconImgSize, height: iconImgSize }} /> : link.title.charAt(0)}
               </div>
               
               {/* 标题 */}
@@ -1944,6 +1993,7 @@ function App() {
             href={link.url}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => handleLinkClick(link)}
             className={`flex flex-1 min-w-0 overflow-hidden h-full ${
               isDetailedView ? 'flex-col' : 'items-center'
             }`}
@@ -1952,10 +2002,12 @@ function App() {
             {/* 第一行：图标和标题水平排列 */}
             <div className={`flex items-center gap-3 w-full`}>
               {/* Icon */}
-              <div className={`text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold uppercase shrink-0 ${
-                isDetailedView ? 'w-8 h-8 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800' : 'w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-700'
+              <div
+                style={{ width: iconContainerSize, height: iconContainerSize }}
+                className={`text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold uppercase shrink-0 ${
+                isDetailedView ? 'rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800' : 'rounded-lg bg-slate-50 dark:bg-slate-700'
               }`}>
-                  {link.icon ? <img src={link.icon} alt="" className="w-5 h-5"/> : link.title.charAt(0)}
+                  {link.icon ? <img src={link.icon} alt="" style={{ width: iconImgSize, height: iconImgSize }} /> : link.title.charAt(0)}
               </div>
               
               {/* 标题 */}
@@ -2110,29 +2162,33 @@ function App() {
               </button>
             </div>
 
-            <div className="px-4">
-              <button
-                onClick={() => { setIsNotesModalOpen(true); setSidebarOpen(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
-                }`}
-              >
-                <div className="p-1"><Icon name="StickyNote" size={18} /></div>
-                <span>便签</span>
-              </button>
-            </div>
+            {authToken && (
+              <>
+                <div className="px-4">
+                  <button
+                    onClick={() => { setIsNotesModalOpen(true); setSidebarOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                      'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <div className="p-1"><Icon name="StickyNote" size={18} /></div>
+                    <span>便签</span>
+                  </button>
+                </div>
 
-            <div className="px-4">
-              <button
-                onClick={() => { setIsTransferModalOpen(true); setSidebarOpen(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
-                }`}
-              >
-                <div className="p-1"><Icon name="Send" size={18} /></div>
-                <span>文件传输助手</span>
-              </button>
-            </div>
+                <div className="px-4">
+                  <button
+                    onClick={() => { setIsTransferModalOpen(true); setSidebarOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                      'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <div className="p-1"><Icon name="Send" size={18} /></div>
+                    <span>文件传输助手</span>
+                  </button>
+                </div>
+              </>
+            )}
             
             <div className="flex items-center justify-between pt-4 pb-2 px-8">
                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">分类目录</span>
@@ -2475,6 +2531,31 @@ function App() {
               </button>
             </div>
 
+            {/* 排序工具栏 - 仅在"所有网站"视图显示 */}
+            {!searchQuery && selectedCategory === 'all' && (
+              <div className={`${isMobileSearchOpen ? 'hidden' : 'flex'} lg:flex items-center bg-slate-100 dark:bg-slate-700 rounded-full p-1`}>
+                {([
+                  { key: 'category', label: '默认' },
+                  { key: 'name', label: '名称' },
+                  { key: 'date', label: '日期' },
+                  { key: 'frequency', label: '频率' },
+                  { key: 'manual', label: '手动' },
+                ] as const).map(item => (
+                  <button
+                    key={item.key}
+                    onClick={() => setAllSortMode(item.key)}
+                    className={`px-3 py-1 text-xs font-medium rounded-full transition-all ${
+                      allSortMode === item.key
+                        ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* 主题切换按钮 - 移动端：搜索框展开时隐藏，桌面端始终显示 */}
             <button onClick={toggleTheme} className={`${isMobileSearchOpen ? 'hidden' : 'flex'} lg:flex p-2 rounded-full text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700`}>
               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
@@ -2508,8 +2589,8 @@ function App() {
         {/* Content Scroll Area */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-8">
             
-            {/* 1. Category Grid */}
-            {!searchQuery && (selectedCategory === 'all') && (
+            {/* 1. Category Grid (default mode) */}
+            {!searchQuery && (selectedCategory === 'all') && allSortMode === 'category' && (
                 <section>
                     
                     
@@ -2588,6 +2669,87 @@ function App() {
                             );
                         })}
                     </div>
+                </section>
+            )}
+
+            {/* 1b. Flat List (non-category sort modes) */}
+            {!searchQuery && selectedCategory === 'all' && allSortMode !== 'category' && (
+                <section>
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                            所有链接
+                        </h2>
+                        <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 rounded-full">
+                            {displayedLinks.length}
+                        </span>
+                    </div>
+
+                    {allSortMode === 'manual' && !isSortingMode && (
+                        <div className="mb-4">
+                            <button
+                                onClick={() => startSorting('all')}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-full transition-colors"
+                            >
+                                <GripVertical size={14} />
+                                <span>排序</span>
+                            </button>
+                        </div>
+                    )}
+
+                    {allSortMode === 'manual' && isSortingMode === 'all' && (
+                        <div className="flex gap-2 mb-4">
+                            <button
+                                onClick={saveSorting}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-full transition-colors"
+                            >
+                                <Save size={14} />
+                                <span>保存顺序</span>
+                            </button>
+                            <button
+                                onClick={cancelSorting}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium rounded-full transition-colors"
+                            >
+                                <X size={14} />
+                                <span>取消</span>
+                            </button>
+                        </div>
+                    )}
+
+                    {displayedLinks.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-slate-400 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+                            <Search size={40} className="opacity-30 mb-4" />
+                            <p>暂无链接</p>
+                        </div>
+                    ) : allSortMode === 'manual' && isSortingMode === 'all' ? (
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCorners}
+                            onDragEnd={handleDragEnd}
+                        >
+                            <SortableContext
+                                items={displayedLinks.map(link => link.id)}
+                                strategy={rectSortingStrategy}
+                            >
+                                <div className={`grid gap-3 ${
+                                    siteSettings.cardStyle === 'detailed'
+                                        ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
+                                        : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'
+                                }`}>
+                                    {displayedLinks.map(link => (
+                                        <SortableLinkCard key={link.id} link={link} />
+                                    ))}
+                                </div>
+                            </SortableContext>
+                        </DndContext>
+                    ) : (
+                        <div className={`grid gap-3 ${
+                            siteSettings.cardStyle === 'detailed'
+                                ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
+                                : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8'
+                        }`}>
+                            {displayedLinks.map(link => renderLinkCard(link))}
+                        </div>
+                    )}
                 </section>
             )}
 

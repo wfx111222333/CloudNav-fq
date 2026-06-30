@@ -10,6 +10,7 @@ export interface LinkItem {
   pinnedOrder?: number;
   private?: boolean;
   order?: number;
+  clickCount?: number;
 }
 
 export interface Category {
@@ -26,6 +27,7 @@ export interface SiteSettings {
   favicon: string;
   cardStyle: 'detailed' | 'simple';
   passwordExpiryDays: number; // 密码过期天数，0表示永久不退出
+  iconSize?: number; // 图标大小（像素），默认32
 }
 
 export interface AppState {
@@ -73,6 +75,7 @@ export interface TransferMessage {
   fileSize?: number;
   createdAt: number;
   sender?: string;
+  folder?: string;
 }
 
 // 搜索模式类型

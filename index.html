@@ -5,6 +5,23 @@
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>云航 CloudNav</title>
+    <script>
+      (function() {
+        try {
+          var s = localStorage.getItem('cloudnav_site_settings');
+          if (s) {
+            var cfg = JSON.parse(s);
+            if (cfg && cfg.title) document.title = cfg.title;
+            if (cfg && cfg.favicon) {
+              var l = document.createElement('link');
+              l.rel = 'icon';
+              l.href = cfg.favicon;
+              document.head.appendChild(l);
+            }
+          }
+        } catch (e) {}
+      })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {

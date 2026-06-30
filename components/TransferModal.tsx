@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Image, Paperclip, Trash2, Download, Copy } from 'lucide-react';
+import { X, Send, Image, Paperclip, Trash2, Download, Copy, Folder, FolderPlus, Search, Grid, List, Move } from 'lucide-react';
 import { TransferMessage } from '../types';
 
 interface TransferModalProps {
@@ -36,6 +36,15 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const [activeTab, setActiveTab] = useState<'messages' | 'files'>('messages');
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentFolder, setCurrentFolder] = useState<string>('');
+  const [fileViewMode, setFileViewMode] = useState<'grid' | 'list'>('grid');
+  const [showMoveMenu, setShowMoveMenu] = useState<string | null>(null);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [showNewFolderInput, setShowNewFolderInput] = useState(false);
 
   useEffect(() => {
     if (isOpen && authToken) {
@@ -82,7 +91,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
 
       if (response.ok) {
         const newMessage = await response.json();
-        setMessages([...messages, newMessage]);
+        setMessages(prev => [...prev, newMessage]);
         setInputValue('');
       }
     } catch (error) {
@@ -102,6 +111,9 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
     try {
       const formData = new FormData();
       formData.append('file', file);
+      if (currentFolder) {
+        formData.append('folder', currentFolder);
+      }
 
       const response = await fetch('/api/transfer/upload', {
         method: 'POST',
@@ -112,13 +124,14 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
       if (response.ok) {
         const result = await response.json();
         const newMessage: TransferMessage = {
-          id: Date.now().toString(),
+          id: result.message?.id || Date.now().toString(),
           type: result.isImage ? 'image' : 'file',
           content: result.fileUrl,
           fileName: result.fileName,
           fileSize: result.message?.fileSize || 0,
-          createdAt: Date.now(),
+          createdAt: result.message?.createdAt || Date.now(),
           sender: 'user',
+          folder: currentFolder || '',
         };
 
         setMessages(prev => [...prev, newMessage]);
@@ -161,9 +174,27 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
         });
       }
 
-      setMessages(messages.filter(m => m.id !== message.id));
+      setMessages(prev => prev.filter(m => m.id !== message.id));
     } catch (error) {
       console.error('Failed to delete message', error);
+    }
+  };
+
+  const moveFile = async (message: TransferMessage, folder: string) => {
+    try {
+      await fetch(`/api/transfer/messages/${message.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-password': authToken,
+        },
+        body: JSON.stringify({ folder }),
+      });
+
+      setMessages(prev => prev.map(m => m.id === message.id ? { ...m, folder } : m));
+      setShowMoveMenu(null);
+    } catch (error) {
+      console.error('Failed to move file', error);
     }
   };
 
@@ -196,6 +227,14 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
     }
   };
 
+  const fileMessages = messages.filter(m => m.type !== 'text');
+  const folders: string[] = Array.from(new Set(fileMessages.map(m => m.folder || '').filter(f => f !== '')));
+  const filteredFiles = fileMessages.filter(m => {
+    const folderMatch = currentFolder === '' ? true : (m.folder || '') === currentFolder;
+    const searchMatch = !searchTerm || (m.fileName || '').toLowerCase().includes(searchTerm.toLowerCase());
+    return folderMatch && searchMatch;
+  });
+
   if (!isOpen) return null;
 
   return (
@@ -209,9 +248,6 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
           <div className="flex items-center gap-2">
             <Paperclip className="w-5 h-5 text-blue-500" />
             <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">文件传输助手</h2>
-            <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 rounded-full">
-              {messages.length} 条消息
-            </span>
           </div>
           <button
             onClick={onClose}
@@ -221,168 +257,452 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
           </button>
         </div>
 
-        <div
-          className="flex-1 overflow-y-auto p-4 space-y-4"
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-        >
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="text-center py-12">
-              <Paperclip className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-              <p className="text-slate-500 dark:text-slate-400">暂无消息</p>
-              <p className="text-sm text-slate-400 mt-2">拖拽文件到此处或点击下方按钮上传</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {messages.map(message => (
-                <div
-                  key={message.id}
-                  className="flex gap-3 group"
-                >
-                  <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                    <span className="text-blue-600 dark:text-blue-300 text-xs font-bold">我</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-medium text-slate-500">我</span>
-                      <span className="text-xs text-slate-400">{formatTime(message.createdAt)}</span>
-                    </div>
+        <div className="flex border-b border-slate-200 dark:border-slate-700">
+          <button
+            onClick={() => setActiveTab('messages')}
+            className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+              activeTab === 'messages'
+                ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-500'
+                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            消息 ({messages.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('files')}
+            className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+              activeTab === 'files'
+                ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-500'
+                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            文件管理 ({fileMessages.length})
+          </button>
+        </div>
 
-                    <div className="relative">
-                      {message.type === 'text' ? (
-                        <p className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-slate-800 dark:text-slate-100 text-sm max-w-md">
-                          {message.content}
-                        </p>
-                      ) : message.type === 'image' ? (
+        {activeTab === 'messages' ? (
+          <>
+            <div
+              className="flex-1 overflow-y-auto p-4 space-y-4"
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="text-center py-12">
+                  <Paperclip className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                  <p className="text-slate-500 dark:text-slate-400">暂无消息</p>
+                  <p className="text-sm text-slate-400 mt-2">拖拽文件到此处或点击下方按钮上传</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {messages.map(message => (
+                    <div key={message.id} className="flex gap-3 group">
+                      <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                        <span className="text-blue-600 dark:text-blue-300 text-xs font-bold">我</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-medium text-slate-500">我</span>
+                          <span className="text-xs text-slate-400">{formatTime(message.createdAt)}</span>
+                        </div>
+
                         <div className="relative">
+                          {message.type === 'text' ? (
+                            <p className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-slate-800 dark:text-slate-100 text-sm max-w-md">
+                              {message.content}
+                            </p>
+                          ) : message.type === 'image' ? (
+                            <div className="relative">
+                              <img
+                                src={message.content}
+                                alt={message.fileName}
+                                onClick={() => setPreviewImage(message.content)}
+                                className="max-w-sm max-h-64 object-contain rounded-xl cursor-pointer hover:opacity-90 transition-opacity"
+                              />
+                              <div className="flex gap-1 mt-1">
+                                <button
+                                  onClick={() => copyLink(message.content)}
+                                  className="p-1 text-slate-400 hover:text-blue-500 transition-colors"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => deleteMessage(message)}
+                                  className="p-1 text-slate-400 hover:text-red-500 transition-colors"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <a
+                              href={message.content}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-3 px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                            >
+                              <div className="flex-shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                <Paperclip className="w-5 h-5 text-blue-500" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
+                                  {message.fileName}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {formatFileSize(message.fileSize || 0)}
+                                </p>
+                              </div>
+                              <Download className="flex-shrink-0 w-4 h-4 text-slate-400" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
+
+              {uploadingFiles.size > 0 && (
+                <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-sm text-blue-600 dark:text-blue-300">
+                    正在上传 {uploadingFiles.size} 个文件...
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-slate-200 dark:border-slate-700">
+              <div className="flex gap-3">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => document.getElementById('file-input')?.click()}
+                    className="p-2.5 text-slate-500 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                    title="选择文件"
+                  >
+                    <Paperclip className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => document.getElementById('image-input')?.click()}
+                    className="p-2.5 text-slate-500 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                    title="选择图片"
+                  >
+                    <Image className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <input id="file-input" type="file" multiple onChange={handleFileSelect} className="hidden" />
+                <input id="image-input" type="file" multiple accept="image/*" onChange={handleFileSelect} className="hidden" />
+
+                <div className="flex-1 relative">
+                  <textarea
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                      }
+                    }}
+                    placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 placeholder-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={2}
+                  />
+                </div>
+
+                <button
+                  onClick={sendMessage}
+                  disabled={!inputValue.trim()}
+                  className="flex-shrink-0 p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl transition-colors"
+                  title="发送"
+                >
+                  <Send className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-xs text-slate-400 mt-2 text-center">
+                支持拖拽文件上传 | 图片自动生成图床链接
+              </p>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 p-3 border-b border-slate-200 dark:border-slate-700 flex-wrap">
+              <div className="flex items-center gap-1 flex-wrap">
+                <button
+                  onClick={() => setCurrentFolder('')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                    currentFolder === ''
+                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300'
+                      : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  全部文件
+                </button>
+                {folders.map(folder => (
+                  <button
+                    key={folder}
+                    onClick={() => setCurrentFolder(folder)}
+                    className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                      currentFolder === folder
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300'
+                        : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <Folder className="w-3 h-3" />
+                    {folder}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex-1" />
+
+              {showNewFolderInput ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    placeholder="文件夹名称"
+                    className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => {
+                      if (newFolderName.trim()) {
+                        setCurrentFolder(newFolderName.trim());
+                        setNewFolderName('');
+                      }
+                      setShowNewFolderInput(false);
+                    }}
+                    className="px-2 py-1 text-xs bg-blue-600 text-white rounded-lg"
+                  >
+                    确定
+                  </button>
+                  <button
+                    onClick={() => { setShowNewFolderInput(false); setNewFolderName(''); }}
+                    className="px-2 py-1 text-xs text-slate-500 rounded-lg"
+                  >
+                    取消
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowNewFolderInput(true)}
+                  className="flex items-center gap-1 px-2 py-1.5 text-xs text-slate-500 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                >
+                  <FolderPlus className="w-3 h-3" />
+                  新建文件夹
+                </button>
+              )}
+
+              <div className="flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
+                <button
+                  onClick={() => setFileViewMode('grid')}
+                  className={`p-1.5 rounded ${fileViewMode === 'grid' ? 'bg-white dark:bg-slate-600 text-blue-500' : 'text-slate-400'}`}
+                >
+                  <Grid className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setFileViewMode('list')}
+                  className={`p-1.5 rounded ${fileViewMode === 'list' ? 'bg-white dark:bg-slate-600 text-blue-500' : 'text-slate-400'}`}
+                >
+                  <List className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="px-3 py-2 border-b border-slate-200 dark:border-slate-700">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="搜索文件..."
+                  className="w-full pl-8 pr-3 py-1.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 dark:text-white"
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {filteredFiles.length === 0 ? (
+                <div className="text-center py-12">
+                  <Paperclip className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                  <p className="text-slate-500 dark:text-slate-400">
+                    {searchTerm ? '未找到匹配文件' : currentFolder ? '该文件夹为空' : '暂无文件'}
+                  </p>
+                  <p className="text-sm text-slate-400 mt-2">点击下方按钮上传文件</p>
+                </div>
+              ) : fileViewMode === 'grid' ? (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                  {filteredFiles.map(message => (
+                    <div
+                      key={message.id}
+                      className="relative group bg-slate-50 dark:bg-slate-800 rounded-xl p-3 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        {message.type === 'image' ? (
                           <img
                             src={message.content}
                             alt={message.fileName}
                             onClick={() => setPreviewImage(message.content)}
-                            className="max-w-sm max-h-64 object-contain rounded-xl cursor-pointer hover:opacity-90 transition-opacity"
+                            className="w-16 h-16 object-cover rounded-lg cursor-pointer"
                           />
-                          <div className="absolute top-2 right-2 flex gap-1">
-                            <button
-                              onClick={() => copyLink(message.content)}
-                              className="p-1.5 bg-black/50 rounded-lg text-white opacity-0 hover:opacity-100 transition-opacity"
-                            >
-                              <Copy className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => deleteMessage(message)}
-                              className="p-1.5 bg-black/50 rounded-lg text-white opacity-0 hover:opacity-100 transition-opacity"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
+                        ) : (
+                          <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                            <Paperclip className="w-6 h-6 text-blue-500" />
                           </div>
-                        </div>
-                      ) : (
-                        <a
-                          href={message.content}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-3 px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        )}
+                        <p className="text-xs text-slate-700 dark:text-slate-200 truncate w-full text-center" title={message.fileName}>
+                          {message.fileName}
+                        </p>
+                        <p className="text-xs text-slate-400">{formatFileSize(message.fileSize || 0)}</p>
+                      </div>
+
+                      <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => setShowMoveMenu(showMoveMenu === message.id ? null : message.id)}
+                          className="p-1 bg-black/50 rounded text-white hover:bg-black/70"
+                          title="移动"
                         >
-                          <div className="flex-shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                            <Paperclip className="w-5 h-5 text-blue-500" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
-                              {message.fileName}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {formatFileSize(message.fileSize || 0)}
-                            </p>
-                          </div>
-                          <Download className="flex-shrink-0 w-4 h-4 text-slate-400" />
-                        </a>
+                          <Move className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => deleteMessage(message)}
+                          className="p-1 bg-black/50 rounded text-white hover:bg-red-500"
+                          title="删除"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+
+                      {showMoveMenu === message.id && (
+                        <div className="absolute top-8 right-1 bg-white dark:bg-slate-700 rounded-lg shadow-lg border border-slate-200 dark:border-slate-600 z-10 min-w-[120px]">
+                          <button
+                            onClick={() => moveFile(message, '')}
+                            className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-slate-600 rounded-t-lg"
+                          >
+                            根目录
+                          </button>
+                          {folders.map(folder => (
+                            <button
+                              key={folder}
+                              onClick={() => moveFile(message, folder)}
+                              className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-slate-600"
+                            >
+                              {folder}
+                            </button>
+                          ))}
+                        </div>
                       )}
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
+              ) : (
+                <div className="space-y-2">
+                  {filteredFiles.map(message => (
+                    <div
+                      key={message.id}
+                      className="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      {message.type === 'image' ? (
+                        <img
+                          src={message.content}
+                          alt={message.fileName}
+                          onClick={() => setPreviewImage(message.content)}
+                          className="w-10 h-10 object-cover rounded-lg cursor-pointer flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Paperclip className="w-5 h-5 text-blue-500" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
+                          {message.fileName}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          {formatFileSize(message.fileSize || 0)} · {formatTime(message.createdAt)}
+                          {message.folder && ` · ${message.folder}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowMoveMenu(showMoveMenu === message.id ? null : message.id)}
+                            className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors"
+                            title="移动"
+                          >
+                            <Move className="w-4 h-4" />
+                          </button>
+                          {showMoveMenu === message.id && (
+                            <div className="absolute top-8 right-0 bg-white dark:bg-slate-700 rounded-lg shadow-lg border border-slate-200 dark:border-slate-600 z-10 min-w-[120px]">
+                              <button
+                                onClick={() => moveFile(message, '')}
+                                className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-slate-600 rounded-t-lg"
+                              >
+                                根目录
+                              </button>
+                              {folders.map(folder => (
+                                <button
+                                  key={folder}
+                                  onClick={() => moveFile(message, folder)}
+                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-slate-600"
+                                >
+                                  {folder}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <a
+                          href={message.content}
+                          download
+                          className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors"
+                          title="下载"
+                        >
+                          <Download className="w-4 h-4" />
+                        </a>
+                        <button
+                          onClick={() => deleteMessage(message)}
+                          className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
+                          title="删除"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-          {uploadingFiles.size > 0 && (
-            <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm text-blue-600 dark:text-blue-300">
-                正在上传 {uploadingFiles.size} 个文件...
-              </span>
+              {uploadingFiles.size > 0 && (
+                <div className="flex items-center gap-2 p-3 mt-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-sm text-blue-600 dark:text-blue-300">
+                    正在上传 {uploadingFiles.size} 个文件...
+                  </span>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        <div className="p-4 border-t border-slate-200 dark:border-slate-700">
-          <div className="flex gap-3">
-            <div className="flex gap-2">
+            <div className="p-3 border-t border-slate-200 dark:border-slate-700">
               <button
-                onClick={() => document.getElementById('file-input')?.click()}
-                className="p-2.5 text-slate-500 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
-                title="选择文件"
+                onClick={() => document.getElementById('file-mgr-input')?.click()}
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors"
               >
-                <Paperclip className="w-5 h-5" />
+                <Paperclip className="w-4 h-4" />
+                上传文件{currentFolder ? `到 "${currentFolder}"` : ''}
               </button>
-              <button
-                onClick={() => document.getElementById('image-input')?.click()}
-                className="p-2.5 text-slate-500 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
-                title="选择图片"
-              >
-                <Image className="w-5 h-5" />
-              </button>
+              <input id="file-mgr-input" type="file" multiple onChange={handleFileSelect} className="hidden" />
             </div>
-
-            <input
-              id="file-input"
-              type="file"
-              multiple
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-            <input
-              id="image-input"
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-
-            <div className="flex-1 relative">
-              <textarea
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                  }
-                }}
-                placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 placeholder-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                rows={2}
-              />
-            </div>
-
-            <button
-              onClick={sendMessage}
-              disabled={!inputValue.trim()}
-              className="flex-shrink-0 p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl transition-colors"
-              title="发送"
-            >
-              <Send className="w-5 h-5" />
-            </button>
-          </div>
-          <p className="text-xs text-slate-400 mt-2 text-center">
-            支持拖拽文件上传 | 图片自动生成图床链接
-          </p>
-        </div>
+          </>
+        )}
       </div>
 
       {previewImage && (
