@@ -28,6 +28,8 @@ import { LinkItem, Category, DEFAULT_CATEGORIES, INITIAL_LINKS, WebDavConfig, AI
 import { parseBookmarks } from './services/bookmarkParser';
 import Icon from './components/Icon';
 import LinkModal from './components/LinkModal';
+import NotesModal from './components/NotesModal';
+import TransferModal from './components/TransferModal';
 import AuthModal from './components/AuthModal';
 import CategoryManagerModal from './components/CategoryManagerModal';
 import BackupModal from './components/BackupModal';
@@ -114,6 +116,8 @@ function App() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isSearchConfigModalOpen, setIsSearchConfigModalOpen] = useState(false);
+  const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [catAuthModalData, setCatAuthModalData] = useState<Category | null>(null);
   
   const [editingLink, setEditingLink] = useState<LinkItem | undefined>(undefined);
@@ -2105,6 +2109,30 @@ function App() {
                 <span>所有网站</span>
               </button>
             </div>
+
+            <div className="px-4">
+              <button
+                onClick={() => { setIsNotesModalOpen(true); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
+                }`}
+              >
+                <div className="p-1"><Icon name="StickyNote" size={18} /></div>
+                <span>便签</span>
+              </button>
+            </div>
+
+            <div className="px-4">
+              <button
+                onClick={() => { setIsTransferModalOpen(true); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
+                }`}
+              >
+                <div className="p-1"><Icon name="Send" size={18} /></div>
+                <span>文件传输助手</span>
+              </button>
+            </div>
             
             <div className="flex items-center justify-between pt-4 pb-2 px-8">
                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">分类目录</span>
@@ -2486,9 +2514,7 @@ function App() {
                     <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-2">
                             <Globe size={16} className="text-blue-500" />
-                            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                                所有网站
-                            </h2>
+                            
                             <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 rounded-full">
                                 {links.length}
                             </span>
@@ -2881,6 +2907,18 @@ function App() {
             initialData={editingLink || (prefillLink as LinkItem)}
             aiConfig={aiConfig}
             defaultCategoryId={selectedCategory !== 'all' ? selectedCategory : undefined}
+          />
+
+          <NotesModal
+            isOpen={isNotesModalOpen}
+            onClose={() => setIsNotesModalOpen(false)}
+            authToken={authToken}
+          />
+
+          <TransferModal
+            isOpen={isTransferModalOpen}
+            onClose={() => setIsTransferModalOpen(false)}
+            authToken={authToken}
           />
 
           {/* 右键菜单 */}

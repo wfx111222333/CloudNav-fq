@@ -56,6 +56,25 @@ export interface AIConfig {
 
 
 
+export interface NoteItem {
+  id: string;
+  content: string;
+  color: string;
+  createdAt: number;
+  updatedAt: number;
+  pinned?: boolean;
+}
+
+export interface TransferMessage {
+  id: string;
+  type: 'text' | 'file' | 'image';
+  content: string;
+  fileName?: string;
+  fileSize?: number;
+  createdAt: number;
+  sender?: string;
+}
+
 // 搜索模式类型
 export type SearchMode = 'internal' | 'external';
 
