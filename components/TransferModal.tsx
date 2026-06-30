@@ -91,6 +91,11 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
   };
 
   const uploadFile = async (file: File) => {
+    if (!authToken) {
+      alert('请先登录后再上传文件');
+      return;
+    }
+
     const fileId = `${file.name}-${Date.now()}`;
     setUploadingFiles(prev => new Set([...prev, fileId]));
 
@@ -116,10 +121,20 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
           sender: 'user',
         };
 
-        setMessages([...messages, newMessage]);
+        setMessages(prev => [...prev, newMessage]);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          alert('认证失败，请重新登录');
+        } else if (response.status === 500) {
+          alert(`上传失败: ${errorData.error || '服务器错误，请检查R2存储桶是否已配置'}`);
+        } else {
+          alert(`上传失败: ${errorData.error || response.statusText}`);
+        }
       }
     } catch (error) {
       console.error('Failed to upload file', error);
+      alert('网络错误，上传失败');
     }
 
     setUploadingFiles(prev => {

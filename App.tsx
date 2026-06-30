@@ -489,7 +489,7 @@ function App() {
         if (expiryTimeMs > 0 && timeDiff > expiryTimeMs) {
           localStorage.removeItem(AUTH_KEY);
           localStorage.removeItem('lastLoginTime');
-          setAuthToken(null);
+          setAuthToken('');
         } else {
           setAuthToken(savedToken);
         }
@@ -555,7 +555,7 @@ function App() {
                 // 如果返回401，可能是密码过期，清除本地token并要求重新登录
                 const errorData = await res.json();
                 if (errorData.error && errorData.error.includes('过期')) {
-                    setAuthToken(null);
+                    setAuthToken('');
                     localStorage.removeItem(AUTH_KEY);
                     setIsAuthOpen(true);
                     setIsCheckingAuth(false);
@@ -854,7 +854,7 @@ function App() {
                 const expiryTimeMs = (siteSettings.passwordExpiryDays || 7) > 0 ? (siteSettings.passwordExpiryDays || 7) * 24 * 60 * 60 * 1000 : 0;
                 
                 if (expiryTimeMs > 0 && timeDiff > expiryTimeMs) {
-                    setAuthToken(null);
+                    setAuthToken('');
                     localStorage.removeItem(AUTH_KEY);
                     setIsAuthOpen(true);
                     alert('您的密码已过期，请重新登录');
@@ -917,7 +917,7 @@ function App() {
   };
 
   const handleLogout = () => {
-      setAuthToken(null);
+      setAuthToken('');
       localStorage.removeItem(AUTH_KEY);
       setSyncStatus('offline');
       // 退出后重新加载本地数据
