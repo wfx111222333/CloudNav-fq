@@ -2511,15 +2511,7 @@ function App() {
             {/* 1. Category Grid */}
             {!searchQuery && (selectedCategory === 'all') && (
                 <section>
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-2">
-                            <Globe size={16} className="text-blue-500" />
-                            
-                            <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 rounded-full">
-                                {links.length}
-                            </span>
-                        </div>
-                    </div>
+                    
                     
                     <div className="space-y-6">
                         {categories.filter(c => !c.parentId).map(category => {

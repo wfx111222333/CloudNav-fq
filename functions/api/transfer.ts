@@ -27,7 +27,7 @@ const getFileExtension = (filename: string): string => {
   return filename.toLowerCase().split('.').pop() || '';
 };
 
-export const onRequest = async (context: { env: Env; request: Request }) => {
+export async function onRequest(context: { env: Env; request: Request }) {
   const { env, request } = context;
   const url = new URL(request.url);
   const path = url.pathname;
@@ -68,7 +68,7 @@ export const onRequest = async (context: { env: Env; request: Request }) => {
   }
 
   try {
-    if (method === 'GET' && path.includes('/messages')) {
+    if (method === 'GET' && path.endsWith('/messages')) {
       const data = await env.CLOUDNAV_KV.get('transfer_messages');
       const messages = data ? JSON.parse(data) : [];
       return new Response(JSON.stringify(messages), {
@@ -76,7 +76,7 @@ export const onRequest = async (context: { env: Env; request: Request }) => {
       });
     }
 
-    if (method === 'POST' && path.includes('/upload')) {
+    if (method === 'POST' && path.endsWith('/upload')) {
       const formData = await request.formData();
       const file = formData.get('file') as File;
       
@@ -115,7 +115,7 @@ export const onRequest = async (context: { env: Env; request: Request }) => {
       });
     }
 
-    if (method === 'POST' && path.includes('/messages')) {
+    if (method === 'POST' && path.endsWith('/messages')) {
       const body = await request.json();
       const data = await env.CLOUDNAV_KV.get('transfer_messages');
       const messages = data ? JSON.parse(data) : [];
@@ -139,7 +139,7 @@ export const onRequest = async (context: { env: Env; request: Request }) => {
       });
     }
 
-    if (method === 'DELETE' && path.includes('/messages')) {
+    if (method === 'DELETE' && path.includes('/messages/')) {
       const messageId = path.split('/').pop();
       
       const data = await env.CLOUDNAV_KV.get('transfer_messages');
@@ -153,7 +153,7 @@ export const onRequest = async (context: { env: Env; request: Request }) => {
       });
     }
 
-    if (method === 'DELETE' && path.includes('/file')) {
+    if (method === 'DELETE' && path.includes('/file/')) {
       const filename = path.split('/').pop();
       
       if (filename) {
@@ -165,14 +165,14 @@ export const onRequest = async (context: { env: Env; request: Request }) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: 'Invalid path' }), {
+    return new Response(JSON.stringify({ error: 'Invalid path', path, method }), {
       status: 400,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: 'Failed to process request' }), {
+    return new Response(JSON.stringify({ error: 'Failed to process request', details: err }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   }
-};
+}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Pin, Palette } from 'lucide-react';
+import { X, Plus, Trash2, Pin, Palette, Edit3, Check, XCircle } from 'lucide-react';
 import { NoteItem } from '../types';
 
 interface NotesModalProps {
@@ -20,8 +20,10 @@ const NOTE_COLORS = [
 export default function NotesModal({ isOpen, onClose, authToken }: NotesModalProps) {
   const [notes, setNotes] = useState<NoteItem[]>([]);
   const [editingNote, setEditingNote] = useState<NoteItem | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [editColor, setEditColor] = useState('#fef3c7');
   const [newNoteContent, setNewNoteContent] = useState('');
-  const [selectedColor, setSelectedColor] = useState('#fef3c7');
+  const [newNoteColor, setNewNoteColor] = useState('#fef3c7');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -62,7 +64,7 @@ export default function NotesModal({ isOpen, onClose, authToken }: NotesModalPro
         },
         body: JSON.stringify({
           content: newNoteContent,
-          color: selectedColor,
+          color: newNoteColor,
           pinned: false,
         }),
       });
@@ -71,31 +73,49 @@ export default function NotesModal({ isOpen, onClose, authToken }: NotesModalPro
         const newNote = await response.json();
         setNotes([newNote, ...notes]);
         setNewNoteContent('');
-        setSelectedColor('#fef3c7');
+        setNewNoteColor('#fef3c7');
       }
     } catch (error) {
       console.error('Failed to create note', error);
     }
   };
 
-  const updateNote = async (note: NoteItem) => {
+  const startEdit = (note: NoteItem) => {
+    setEditingNote(note);
+    setEditContent(note.content);
+    setEditColor(note.color);
+  };
+
+  const saveEdit = async () => {
+    if (!editingNote) return;
+
     try {
-      const response = await fetch(`/api/notes/${note.id}`, {
+      const response = await fetch(`/api/notes/${editingNote.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'x-auth-password': authToken,
         },
-        body: JSON.stringify(note),
+        body: JSON.stringify({
+          ...editingNote,
+          content: editContent,
+          color: editColor,
+        }),
       });
 
       if (response.ok) {
-        setNotes(notes.map(n => n.id === note.id ? note : n));
-        setEditingNote(null);
+        setNotes(notes.map(n => n.id === editingNote.id ? { ...n, content: editContent, color: editColor } : n));
+        cancelEdit();
       }
     } catch (error) {
       console.error('Failed to update note', error);
     }
+  };
+
+  const cancelEdit = () => {
+    setEditingNote(null);
+    setEditContent('');
+    setEditColor('#fef3c7');
   };
 
   const deleteNote = async (noteId: string) => {
@@ -109,6 +129,9 @@ export default function NotesModal({ isOpen, onClose, authToken }: NotesModalPro
 
       if (response.ok) {
         setNotes(notes.filter(n => n.id !== noteId));
+        if (editingNote?.id === noteId) {
+          cancelEdit();
+        }
       }
     } catch (error) {
       console.error('Failed to delete note', error);
@@ -117,8 +140,26 @@ export default function NotesModal({ isOpen, onClose, authToken }: NotesModalPro
 
   const togglePin = async (note: NoteItem) => {
     const updatedNote = { ...note, pinned: !note.pinned };
-    await updateNote(updatedNote);
+    try {
+      const response = await fetch(`/api/notes/${note.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-password': authToken,
+        },
+        body: JSON.stringify(updatedNote),
+      });
+
+      if (response.ok) {
+        setNotes(notes.map(n => n.id === note.id ? updatedNote : n));
+      }
+    } catch (error) {
+      console.error('Failed to update note', error);
+    }
   };
+
+  const pinnedNotes = notes.filter(n => n.pinned);
+  const normalNotes = notes.filter(n => !n.pinned);
 
   if (!isOpen) return null;
 
@@ -128,8 +169,8 @@ export default function NotesModal({ isOpen, onClose, authToken }: NotesModalPro
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-3xl max-h-[85vh] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+      <div className="relative w-full max-w-4xl max-h-[90vh] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
           <div className="flex items-center gap-2">
             <Palette className="w-5 h-5 text-blue-500" />
             <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">便签</h2>
@@ -145,45 +186,6 @@ export default function NotesModal({ isOpen, onClose, authToken }: NotesModalPro
           </button>
         </div>
 
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-          <div className="flex gap-3">
-            <textarea
-              value={newNoteContent}
-              onChange={(e) => setNewNoteContent(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && e.ctrlKey) {
-                  createNote();
-                }
-              }}
-              placeholder="输入便签内容... (Ctrl+Enter 创建)"
-              className="flex-1 px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 placeholder-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              rows={3}
-            />
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-1 flex-wrap">
-                {NOTE_COLORS.map(color => (
-                  <button
-                    key={color}
-                    onClick={() => setSelectedColor(color)}
-                    className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
-                      selectedColor === color ? 'border-blue-500 scale-110' : 'border-transparent'
-                    }`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
-              </div>
-              <button
-                onClick={createNote}
-                disabled={!newNoteContent.trim()}
-                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
-              >
-                <Plus className="w-4 h-4 inline-block mr-1" />
-                添加
-              </button>
-            </div>
-          </div>
-        </div>
-
         <div className="flex-1 overflow-y-auto p-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
@@ -192,84 +194,249 @@ export default function NotesModal({ isOpen, onClose, authToken }: NotesModalPro
           ) : notes.length === 0 ? (
             <div className="text-center py-12">
               <Palette className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-              <p className="text-slate-500 dark:text-slate-400">暂无便签，点击上方添加</p>
+              <p className="text-slate-500 dark:text-slate-400">暂无便签，点击下方添加</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {notes.map(note => (
-                <div
-                  key={note.id}
-                  className="relative rounded-xl p-4 shadow-sm transition-all hover:shadow-md group"
-                  style={{ backgroundColor: note.color }}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <button
-                      onClick={() => togglePin(note)}
-                      className={`p-1 rounded transition-colors ${
-                        note.pinned ? 'text-amber-600' : 'text-slate-400 hover:text-amber-600'
-                      }`}
-                    >
-                      <Pin className={`w-4 h-4 ${note.pinned ? 'fill-current' : ''}`} />
-                    </button>
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => setEditingNote(note)}
-                        className="p-1 text-slate-400 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity"
+            <div className="space-y-6">
+              {pinnedNotes.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <Pin className="w-3 h-3" />
+                    置顶
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {pinnedNotes.map(note => (
+                      <div
+                        key={note.id}
+                        className="relative rounded-xl p-4 shadow-sm transition-all hover:shadow-md"
+                        style={{ backgroundColor: note.color }}
                       >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => deleteNote(note.id)}
-                        className="p-1 text-slate-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {editingNote?.id === note.id ? (
-                    <textarea
-                      value={editingNote.content}
-                      onChange={(e) => setEditingNote({ ...editingNote, content: e.target.value })}
-                      onBlur={() => updateNote(editingNote)}
-                      className="w-full bg-transparent border border-slate-300 rounded-lg p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      rows={3}
-                      autoFocus
-                    />
-                  ) : (
-                    <p className="text-sm text-slate-800 whitespace-pre-wrap">{note.content}</p>
-                  )}
-
-                  <div className="mt-3 flex items-center justify-between">
-                    <div className="flex gap-1">
-                      {NOTE_COLORS.map(color => (
-                        <button
-                          key={color}
-                          onClick={() => {
-                            const updated = { ...note, color };
-                            setEditingNote(updated);
-                            updateNote(updated);
-                          }}
-                          className={`w-4 h-4 rounded-full border transition-transform hover:scale-110 ${
-                            note.color === color ? 'border-slate-600 scale-110' : 'border-transparent'
-                          }`}
-                          style={{ backgroundColor: color }}
-                        />
-                      ))}
-                    </div>
-                    <span className="text-xs text-slate-500">
-                      {new Date(note.updatedAt).toLocaleString('zh-CN', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
+                        <div className="flex items-center justify-between mb-2">
+                          <button
+                            onClick={() => togglePin(note)}
+                            className="p-1 rounded transition-colors text-amber-600"
+                          >
+                            <Pin className="w-4 h-4 fill-current" />
+                          </button>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => startEdit(note)}
+                              className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => deleteNote(note.id)}
+                              className="p-1 text-slate-400 hover:text-red-600 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-sm text-slate-800 whitespace-pre-wrap">{note.content}</p>
+                        <div className="mt-3 flex items-center justify-between">
+                          <div className="flex gap-1">
+                            {NOTE_COLORS.map(color => (
+                              <button
+                                key={color}
+                                onClick={() => {
+                                  const updated = { ...note, color };
+                                  setNotes(notes.map(n => n.id === note.id ? updated : n));
+                                  fetch(`/api/notes/${note.id}`, {
+                                    method: 'PUT',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                      'x-auth-password': authToken,
+                                    },
+                                    body: JSON.stringify(updated),
+                                  });
+                                }}
+                                className={`w-4 h-4 rounded-full border transition-transform hover:scale-110 ${
+                                  note.color === color ? 'border-slate-600 scale-110' : 'border-transparent'
+                                }`}
+                                style={{ backgroundColor: color }}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-xs text-slate-500">
+                            {new Date(note.updatedAt).toLocaleString('zh-CN', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
+              )}
+
+              {normalNotes.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                    所有便签
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {normalNotes.map(note => (
+                      <div
+                        key={note.id}
+                        className="relative rounded-xl p-4 shadow-sm transition-all hover:shadow-md"
+                        style={{ backgroundColor: note.color }}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <button
+                            onClick={() => togglePin(note)}
+                            className="p-1 rounded transition-colors text-slate-400 hover:text-amber-600"
+                          >
+                            <Pin className="w-4 h-4" />
+                          </button>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => startEdit(note)}
+                              className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => deleteNote(note.id)}
+                              className="p-1 text-slate-400 hover:text-red-600 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-sm text-slate-800 whitespace-pre-wrap">{note.content}</p>
+                        <div className="mt-3 flex items-center justify-between">
+                          <div className="flex gap-1">
+                            {NOTE_COLORS.map(color => (
+                              <button
+                                key={color}
+                                onClick={() => {
+                                  const updated = { ...note, color };
+                                  setNotes(notes.map(n => n.id === note.id ? updated : n));
+                                  fetch(`/api/notes/${note.id}`, {
+                                    method: 'PUT',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                      'x-auth-password': authToken,
+                                    },
+                                    body: JSON.stringify(updated),
+                                  });
+                                }}
+                                className={`w-4 h-4 rounded-full border transition-transform hover:scale-110 ${
+                                  note.color === color ? 'border-slate-600 scale-110' : 'border-transparent'
+                                }`}
+                                style={{ backgroundColor: color }}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-xs text-slate-500">
+                            {new Date(note.updatedAt).toLocaleString('zh-CN', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
+          {editingNote ? (
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">编辑便签</h3>
+                <button
+                  onClick={cancelEdit}
+                  className="p-1 text-slate-400 hover:text-slate-600"
+                >
+                  <XCircle className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="flex gap-3">
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="flex-1 px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-800 dark:text-slate-100 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={3}
+                />
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-1 flex-wrap">
+                    {NOTE_COLORS.map(color => (
+                      <button
+                        key={color}
+                        onClick={() => setEditColor(color)}
+                        className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
+                          editColor === color ? 'border-blue-500 scale-110' : 'border-transparent'
+                        }`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={cancelEdit}
+                      className="flex-1 px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={saveEdit}
+                      disabled={!editContent.trim()}
+                      className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
+                    >
+                      <Check className="w-4 h-4 inline-block mr-1" />
+                      保存
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              <textarea
+                value={newNoteContent}
+                onChange={(e) => setNewNoteContent(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.ctrlKey) {
+                    createNote();
+                  }
+                }}
+                placeholder="输入便签内容... (Ctrl+Enter 创建)"
+                className="flex-1 px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 placeholder-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={3}
+              />
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-1 flex-wrap">
+                  {NOTE_COLORS.map(color => (
+                    <button
+                      key={color}
+                      onClick={() => setNewNoteColor(color)}
+                      className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
+                        newNoteColor === color ? 'border-blue-500 scale-110' : 'border-transparent'
+                      }`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+                <button
+                  onClick={createNote}
+                  disabled={!newNoteContent.trim()}
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
+                >
+                  <Plus className="w-4 h-4 inline-block mr-1" />
+                  添加
+                </button>
+              </div>
             </div>
           )}
         </div>
