@@ -73,6 +73,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const [activeTab, setActiveTab] = useState<'messages' | 'files'>('messages');
 
@@ -82,6 +83,14 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
   const [showMoveMenu, setShowMoveMenu] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
   const [showNewFolderInput, setShowNewFolderInput] = useState(false);
+
+  const [allMessages, setAllMessages] = useState<TransferMessage[]>([]);
+  const [messageOffset, setMessageOffset] = useState(0);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const [filePage, setFilePage] = useState(1);
+  const FILES_PER_PAGE = 9;
 
   useEffect(() => {
     if (isOpen && authToken) {
@@ -105,6 +114,28 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMoveMenu]);
 
+  useEffect(() => {
+    const handleScroll = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (target.scrollTop === 0 && hasMoreMessages && !isLoadingMore) {
+        loadMoreMessages();
+      }
+    };
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+    }
+    return () => {
+      if (container) {
+        container.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [hasMoreMessages, isLoadingMore]);
+
+  useEffect(() => {
+    setFilePage(1);
+  }, [searchTerm, currentFolder]);
+
   const fetchMessages = async () => {
     setIsLoading(true);
     try {
@@ -113,12 +144,34 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
       });
       if (response.ok) {
         const data = await response.json();
-        setMessages(data.sort((a: TransferMessage, b: TransferMessage) => a.createdAt - b.createdAt));
+        const sorted = data.sort((a: TransferMessage, b: TransferMessage) => a.createdAt - b.createdAt);
+        setAllMessages(sorted);
+        setMessageOffset(0);
+        setHasMoreMessages(true);
+        updateDisplayMessages(sorted, 0);
       }
     } catch (error) {
       console.error('Failed to fetch messages', error);
     }
     setIsLoading(false);
+  };
+
+  const updateDisplayMessages = (all: TransferMessage[], offset: number) => {
+    const PAGE_SIZE = 5;
+    const start = Math.max(0, all.length - offset - PAGE_SIZE);
+    const end = all.length - offset;
+    setMessages(all.slice(start, end));
+    setHasMoreMessages(start > 0);
+  };
+
+  const loadMoreMessages = async () => {
+    if (isLoadingMore || !hasMoreMessages) return;
+    setIsLoadingMore(true);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const newOffset = messageOffset + 5;
+    setMessageOffset(newOffset);
+    updateDisplayMessages(allMessages, newOffset);
+    setIsLoadingMore(false);
   };
 
   const sendMessage = async () => {
@@ -140,7 +193,8 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
 
       if (response.ok) {
         const newMessage = await response.json();
-        setMessages(prev => [...prev, newMessage]);
+        setAllMessages(prev => [...prev, newMessage]);
+        updateDisplayMessages([...allMessages, newMessage], messageOffset);
         setInputValue('');
       }
     } catch (error) {
@@ -198,7 +252,8 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
           originalUrl: result.thumbnailUrl ? result.fileUrl : undefined,
         };
 
-        setMessages(prev => [...prev, newMessage]);
+        setAllMessages(prev => [...prev, newMessage]);
+        updateDisplayMessages([...allMessages, newMessage], messageOffset);
       } else {
         const errorData = await response.json().catch(() => ({}));
         if (response.status === 401) {
@@ -251,7 +306,8 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
         }
       }
 
-      setMessages(prev => prev.filter(m => m.id !== message.id));
+      setAllMessages(prev => prev.filter(m => m.id !== message.id));
+      updateDisplayMessages(allMessages.filter(m => m.id !== message.id), messageOffset);
     } catch (error) {
       console.error('Failed to delete message', error);
     }
@@ -268,7 +324,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
         body: JSON.stringify({ folder }),
       });
 
-      setMessages(prev => prev.map(m => m.id === message.id ? { ...m, folder } : m));
+      setAllMessages(prev => prev.map(m => m.id === message.id ? { ...m, folder } : m));
       setShowMoveMenu(null);
     } catch (error) {
       console.error('Failed to move file', error);
@@ -304,13 +360,15 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
     }
   };
 
-  const fileMessages = messages.filter(m => m.type !== 'text');
+  const fileMessages = allMessages.filter(m => m.type !== 'text');
   const folders: string[] = Array.from(new Set(fileMessages.map(m => m.folder || '').filter(f => f !== '')));
   const filteredFiles = fileMessages.filter(m => {
     const folderMatch = currentFolder === '' ? true : (m.folder || '') === currentFolder;
     const searchMatch = !searchTerm || (m.fileName || '').toLowerCase().includes(searchTerm.toLowerCase());
     return folderMatch && searchMatch;
   });
+  const totalPages = Math.max(1, Math.ceil(filteredFiles.length / FILES_PER_PAGE));
+  const paginatedFiles = filteredFiles.slice((filePage - 1) * FILES_PER_PAGE, filePage * FILES_PER_PAGE);
 
   if (!isOpen) return null;
 
@@ -343,7 +401,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                 : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
             }`}
           >
-            消息 ({messages.length})
+            消息 ({allMessages.length})
           </button>
           <button
             onClick={() => setActiveTab('files')}
@@ -360,10 +418,17 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
         {activeTab === 'messages' ? (
           <>
             <div
+              ref={messagesContainerRef}
               className="flex-1 overflow-y-auto p-4 space-y-4"
               onDrop={handleDrop}
               onDragOver={handleDragOver}
             >
+              {isLoadingMore && hasMoreMessages && (
+                <div className="flex items-center justify-center py-2">
+                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                  <span className="ml-2 text-xs text-slate-400">加载更多...</span>
+                </div>
+              )}
               {isLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -617,7 +682,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                 </div>
               ) : fileViewMode === 'grid' ? (
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                  {filteredFiles.map(message => (
+                  {paginatedFiles.map(message => (
                     <div
                       key={message.id}
                       className="relative group bg-slate-50 dark:bg-slate-800 rounded-xl p-3 hover:shadow-md transition-shadow"
@@ -691,7 +756,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {filteredFiles.map(message => (
+                  {paginatedFiles.map(message => (
                     <div
                       key={message.id}
                       className="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
@@ -774,6 +839,28 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                   <span className="text-sm text-blue-600 dark:text-blue-300">
                     正在上传 {uploadingFiles.size} 个文件...
                   </span>
+                </div>
+              )}
+
+              {filteredFiles.length > FILES_PER_PAGE && (
+                <div className="flex items-center justify-center gap-2 mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
+                  <button
+                    onClick={() => setFilePage(p => Math.max(1, p - 1))}
+                    disabled={filePage === 1}
+                    className="px-2 py-1 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed rounded"
+                  >
+                    上一页
+                  </button>
+                  <span className="text-xs text-slate-400">
+                    第 {filePage} / {totalPages} 页
+                  </span>
+                  <button
+                    onClick={() => setFilePage(p => Math.min(totalPages, p + 1))}
+                    disabled={filePage === totalPages}
+                    className="px-2 py-1 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed rounded"
+                  >
+                    下一页
+                  </button>
                 </div>
               )}
             </div>
