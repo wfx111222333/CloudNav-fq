@@ -29,6 +29,43 @@ const formatTime = (timestamp: number): string => {
   });
 };
 
+const compressImage = (file: File, maxSize: number = 300, quality: number = 0.7): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height) {
+          if (width > maxSize) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('Canvas not supported')); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Compression failed'));
+        }, 'image/jpeg', quality);
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function TransferModal({ isOpen, onClose, authToken }: TransferModalProps) {
   const [messages, setMessages] = useState<TransferMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -55,6 +92,18 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (!showMoveMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-move-menu]')) {
+        setShowMoveMenu(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMoveMenu]);
 
   const fetchMessages = async () => {
     setIsLoading(true);
@@ -111,6 +160,18 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
     try {
       const formData = new FormData();
       formData.append('file', file);
+
+      // 图片文件：客户端生成缩略图同时上传，原图用于下载
+      const isImage = file.type.startsWith('image/');
+      if (isImage) {
+        try {
+          const thumbBlob = await compressImage(file, 300, 0.7);
+          formData.append('thumbnail', thumbBlob, 'thumb.jpg');
+        } catch (compressErr) {
+          console.warn('Thumbnail compression failed, uploading original only', compressErr);
+        }
+      }
+
       if (currentFolder) {
         formData.append('folder', currentFolder);
       }
@@ -126,12 +187,15 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
         const newMessage: TransferMessage = {
           id: result.message?.id || Date.now().toString(),
           type: result.isImage ? 'image' : 'file',
-          content: result.fileUrl,
+          // 显示用缩略图（若有），否则用原图
+          content: result.thumbnailUrl || result.fileUrl,
           fileName: result.fileName,
           fileSize: result.message?.fileSize || 0,
           createdAt: result.message?.createdAt || Date.now(),
           sender: 'user',
           folder: currentFolder || '',
+          // 原图URL用于下载
+          originalUrl: result.thumbnailUrl ? result.fileUrl : undefined,
         };
 
         setMessages(prev => [...prev, newMessage]);
@@ -167,11 +231,24 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
       });
 
       if (message.type !== 'text') {
-        const filename = message.content.split('/').pop();
-        await fetch(`/api/transfer/file/${filename}`, {
-          method: 'DELETE',
-          headers: { 'x-auth-password': authToken },
-        });
+        // 删除显示用文件（缩略图或原图）
+        const displayFilename = message.content.split('/').pop();
+        if (displayFilename) {
+          await fetch(`/api/transfer/file/${displayFilename}`, {
+            method: 'DELETE',
+            headers: { 'x-auth-password': authToken },
+          });
+        }
+        // 若存在原图URL（说明显示用的是缩略图），还需删除原图
+        if (message.originalUrl) {
+          const originalFilename = message.originalUrl.split('/').pop();
+          if (originalFilename && originalFilename !== displayFilename) {
+            await fetch(`/api/transfer/file/${originalFilename}`, {
+              method: 'DELETE',
+              headers: { 'x-auth-password': authToken },
+            });
+          }
+        }
       }
 
       setMessages(prev => prev.filter(m => m.id !== message.id));
@@ -340,7 +417,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                             </div>
                           ) : (
                             <a
-                              href={message.content}
+                              href={message.originalUrl || message.content}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center gap-3 px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
@@ -566,12 +643,21 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
 
                       <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
+                          data-move-menu
                           onClick={() => setShowMoveMenu(showMoveMenu === message.id ? null : message.id)}
                           className="p-1 bg-black/50 rounded text-white hover:bg-black/70"
                           title="移动"
                         >
                           <Move className="w-3 h-3" />
                         </button>
+                        <a
+                          href={message.originalUrl || message.content}
+                          download
+                          className="p-1 bg-black/50 rounded text-white hover:bg-blue-500"
+                          title="下载"
+                        >
+                          <Download className="w-3 h-3" />
+                        </a>
                         <button
                           onClick={() => deleteMessage(message)}
                           className="p-1 bg-black/50 rounded text-white hover:bg-red-500"
@@ -582,7 +668,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                       </div>
 
                       {showMoveMenu === message.id && (
-                        <div className="absolute top-8 right-1 bg-white dark:bg-slate-700 rounded-lg shadow-lg border border-slate-200 dark:border-slate-600 z-10 min-w-[120px]">
+                        <div data-move-menu className="absolute top-8 right-1 bg-white dark:bg-slate-700 rounded-lg shadow-lg border border-slate-200 dark:border-slate-600 z-10 min-w-[120px]">
                           <button
                             onClick={() => moveFile(message, '')}
                             className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-slate-600 rounded-t-lg"
@@ -634,6 +720,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <div className="relative">
                           <button
+                            data-move-menu
                             onClick={() => setShowMoveMenu(showMoveMenu === message.id ? null : message.id)}
                             className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors"
                             title="移动"
@@ -641,7 +728,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                             <Move className="w-4 h-4" />
                           </button>
                           {showMoveMenu === message.id && (
-                            <div className="absolute top-8 right-0 bg-white dark:bg-slate-700 rounded-lg shadow-lg border border-slate-200 dark:border-slate-600 z-10 min-w-[120px]">
+                            <div data-move-menu className="absolute top-8 right-0 bg-white dark:bg-slate-700 rounded-lg shadow-lg border border-slate-200 dark:border-slate-600 z-10 min-w-[120px]">
                               <button
                                 onClick={() => moveFile(message, '')}
                                 className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-slate-600 rounded-t-lg"
@@ -661,7 +748,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                           )}
                         </div>
                         <a
-                          href={message.content}
+                          href={message.originalUrl || message.content}
                           download
                           className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors"
                           title="下载"

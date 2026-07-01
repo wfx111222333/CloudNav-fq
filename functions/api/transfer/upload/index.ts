@@ -45,6 +45,7 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
+    const thumbnail = formData.get('thumbnail') as File | null;
     const folder = (formData.get('folder') as string) || '';
 
     if (!file) {
@@ -53,41 +54,59 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
-    
+
     const fileExtension = file.name.split('.').pop() || '';
-    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}.${fileExtension}`;
+    const baseName = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    const fileName = `${baseName}.${fileExtension}`;
     const fileBytes = await file.arrayBuffer();
-    
+
     await env.CLOUDNAV_R2.put(fileName, fileBytes, {
       httpMetadata: {
         contentType: file.type || 'application/octet-stream',
       },
     });
-    
+
     const isImage = file.type.startsWith('image/');
-    const imageUrl = `/api/transfer/file/${fileName}`;
-    
+    const fileUrl = `/api/transfer/file/${fileName}`;
+
+    // 存储缩略图（若提供），用于图片显示；原图保留用于下载
+    let thumbnailUrl: string | undefined;
+    if (isImage && thumbnail) {
+      const thumbName = `${baseName}_thumb.jpg`;
+      const thumbBytes = await thumbnail.arrayBuffer();
+      await env.CLOUDNAV_R2.put(thumbName, thumbBytes, {
+        httpMetadata: {
+          contentType: 'image/jpeg',
+        },
+      });
+      thumbnailUrl = `/api/transfer/file/${thumbName}`;
+    }
+
     const data = await env.CLOUDNAV_KV.get('transfer_messages');
     const messages = data ? JSON.parse(data) : [];
-    
+
     const newMessage = {
       id: Date.now().toString(),
       type: isImage ? 'image' : 'file',
-      content: imageUrl,
+      // 显示用缩略图（若有），否则用原图
+      content: thumbnailUrl || fileUrl,
       fileName: file.name,
       fileSize: file.size,
       createdAt: Date.now(),
       sender: 'user',
       folder: folder,
+      // 保存原图URL用于下载
+      originalUrl: thumbnailUrl ? fileUrl : undefined,
     };
-    
+
     messages.push(newMessage);
     await env.CLOUDNAV_KV.put('transfer_messages', JSON.stringify(messages));
-    
+
     return new Response(JSON.stringify({
       success: true,
       fileName: file.name,
-      fileUrl: imageUrl,
+      fileUrl,
+      thumbnailUrl,
       isImage,
       message: newMessage,
     }), {

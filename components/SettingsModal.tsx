@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Save, Bot, Key, Globe, Sparkles, PauseCircle, Wrench, Box, Copy, Check, LayoutTemplate, RefreshCw, Info, Download, Sidebar, Keyboard, MousePointerClick, AlertTriangle, Package, Zap, Menu } from 'lucide-react';
+import { X, Save, Bot, Key, Globe, Sparkles, PauseCircle, Wrench, Box, Copy, Check, LayoutTemplate, RefreshCw, Info, Download, Sidebar, Keyboard, MousePointerClick, AlertTriangle, Package, Zap, Menu, Image as ImageIcon, Trash2, Loader2 } from 'lucide-react';
 import { AIConfig, LinkItem, Category, SiteSettings } from '../types';
 import { generateLinkDescription } from '../services/geminiService';
 import JSZip from 'jszip';
@@ -69,7 +69,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       favicon: siteSettings?.favicon || '',
       cardStyle: siteSettings?.cardStyle || 'detailed',
       passwordExpiryDays: siteSettings?.passwordExpiryDays ?? 7,
-      iconSize: siteSettings?.iconSize ?? 32
+      iconSize: siteSettings?.iconSize ?? 32,
+      titleColor: siteSettings?.titleColor || '',
+      titleFontSize: siteSettings?.titleFontSize ?? 16,
+      backgroundImage: siteSettings?.backgroundImage || '',
+      gridColumns: siteSettings?.gridColumns ?? 6
   }));
   
   const [generatedIcons, setGeneratedIcons] = useState<string[]>([]);
@@ -105,7 +109,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           favicon: siteSettings?.favicon || '',
           cardStyle: siteSettings?.cardStyle || 'detailed',
           passwordExpiryDays: siteSettings?.passwordExpiryDays ?? 7,
-          iconSize: siteSettings?.iconSize ?? 32
+          iconSize: siteSettings?.iconSize ?? 32,
+          titleColor: siteSettings?.titleColor || '',
+          titleFontSize: siteSettings?.titleFontSize ?? 16,
+          backgroundImage: siteSettings?.backgroundImage || '',
+          gridColumns: siteSettings?.gridColumns ?? 6
       };
       setLocalSiteSettings(safeSettings);
       if (generatedIcons.length === 0) {
@@ -131,7 +139,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         const next = { ...prev, [key]: value };
 
         // 身份验证过期天数和图标大小修改时立即保存到 KV 空间
-        if ((key === 'passwordExpiryDays' || key === 'iconSize') && authToken) {
+        if ((key === 'passwordExpiryDays' || key === 'iconSize' || key === 'titleColor' || key === 'titleFontSize' || key === 'backgroundImage' || key === 'gridColumns') && authToken) {
             saveWebsiteConfigToKV(next);
         }
 
@@ -160,6 +168,44 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     } catch (error) {
         console.error('Error saving website config to KV:', error);
     }
+  };
+
+  const [isUploadingBg, setIsUploadingBg] = useState(false);
+
+  const handleBackgroundUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !authToken) return;
+    setIsUploadingBg(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/settings/background', {
+        method: 'POST',
+        headers: { 'x-auth-password': authToken },
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        handleSiteChange('backgroundImage', data.url);
+      } else {
+        alert('背景上传失败: ' + (await res.text()));
+      }
+    } catch (err) {
+      alert('背景上传失败');
+    }
+    setIsUploadingBg(false);
+    e.target.value = '';
+  };
+
+  const handleRemoveBackground = async () => {
+    if (!authToken) return;
+    try {
+      await fetch('/api/settings/background', {
+        method: 'DELETE',
+        headers: { 'x-auth-password': authToken },
+      });
+    } catch (e) {}
+    handleSiteChange('backgroundImage', '');
   };
 
   const handleSave = () => {
@@ -1145,6 +1191,102 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     <span className="text-sm text-slate-600 dark:text-slate-400 w-12 text-right">{localSiteSettings.iconSize ?? 32}px</span>
                                 </div>
                                 <p className="text-xs text-slate-500 mt-1">拖动滑块调整网站图标的显示大小（24-48像素）</p>
+                            </div>
+
+                            {/* 卡片标题颜色 */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">卡片标题颜色</label>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="color"
+                                        value={localSiteSettings.titleColor || '#3b82f6'}
+                                        onChange={(e) => handleSiteChange('titleColor', e.target.value)}
+                                        className="w-10 h-10 rounded-lg border border-slate-300 dark:border-slate-600 cursor-pointer"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={localSiteSettings.titleColor || ''}
+                                        onChange={(e) => handleSiteChange('titleColor', e.target.value)}
+                                        placeholder="#3b82f6 或留空使用默认"
+                                        className="flex-1 p-2 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    {localSiteSettings.titleColor && (
+                                        <button onClick={() => handleSiteChange('titleColor', '')} className="text-xs text-slate-500 hover:text-red-500">清除</button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* 卡片标题字号 */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">卡片标题字号</label>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="range"
+                                        min="12"
+                                        max="24"
+                                        value={localSiteSettings.titleFontSize ?? 16}
+                                        onChange={(e) => handleSiteChange('titleFontSize', parseInt(e.target.value))}
+                                        className="flex-1 accent-blue-500"
+                                    />
+                                    <span className="text-sm text-slate-600 dark:text-slate-400 w-12 text-right">{localSiteSettings.titleFontSize ?? 16}px</span>
+                                </div>
+                            </div>
+
+                            {/* 实时预览 */}
+                            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                                <p className="text-xs text-slate-500 mb-2">预览</p>
+                                <div className="flex flex-col items-center text-center">
+                                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center mb-2">
+                                        <Globe size={16} className="text-blue-500" />
+                                    </div>
+                                    <h3 style={{ color: localSiteSettings.titleColor || undefined, fontSize: `${localSiteSettings.titleFontSize ?? 16}px` }} className="truncate">
+                                        示例标题
+                                    </h3>
+                                </div>
+                            </div>
+
+                            {/* 背景图片 */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">背景图片</label>
+                                <div className="flex items-center gap-3">
+                                    {localSiteSettings.backgroundImage ? (
+                                      <>
+                                        <div className="w-16 h-10 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-600 bg-slate-100">
+                                          <img src={localSiteSettings.backgroundImage} className="w-full h-full object-cover" />
+                                        </div>
+                                        <button onClick={() => document.getElementById('bg-upload')?.click()} className="text-sm text-blue-600 hover:underline">
+                                          更换
+                                        </button>
+                                        <button onClick={handleRemoveBackground} className="text-sm text-red-500 hover:underline flex items-center gap-1">
+                                          <Trash2 size={14} /> 移除
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <button onClick={() => document.getElementById('bg-upload')?.click()} disabled={isUploadingBg} className="flex items-center gap-2 px-4 py-2 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-sm text-slate-500 hover:border-blue-500 hover:text-blue-500 transition-colors">
+                                        {isUploadingBg ? <Loader2 size={16} className="animate-spin" /> : <ImageIcon size={16} />}
+                                        {isUploadingBg ? '上传中...' : '上传背景图片'}
+                                      </button>
+                                    )}
+                                    <input id="bg-upload" type="file" accept="image/jpeg,image/png,image/webp" onChange={handleBackgroundUpload} className="hidden" />
+                                </div>
+                                <p className="text-xs text-slate-500 mt-1">支持 JPG/PNG/WEBP 格式，上传后背景将覆盖整个内容区域</p>
+                            </div>
+
+                            {/* 网格列数 */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">网格列数</label>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="range"
+                                        min="3"
+                                        max="6"
+                                        value={localSiteSettings.gridColumns ?? 6}
+                                        onChange={(e) => handleSiteChange('gridColumns', parseInt(e.target.value))}
+                                        className="flex-1 accent-blue-500"
+                                    />
+                                    <span className="text-sm text-slate-600 dark:text-slate-400 w-12 text-right">{localSiteSettings.gridColumns ?? 6} 列</span>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-1">设置每行最多显示的链接卡片数量 (3-6)</p>
                             </div>
                         </div>
                     </div>

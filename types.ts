@@ -28,6 +28,10 @@ export interface SiteSettings {
   cardStyle: 'detailed' | 'simple';
   passwordExpiryDays: number; // 密码过期天数，0表示永久不退出
   iconSize?: number; // 图标大小（像素），默认32
+  titleColor?: string; // 卡片标题颜色
+  titleFontSize?: number; // 卡片标题字号
+  backgroundImage?: string; // 背景图URL
+  gridColumns?: number; // 网格列数(3-6, 默认6)
 }
 
 export interface AppState {
@@ -76,6 +80,7 @@ export interface TransferMessage {
   createdAt: number;
   sender?: string;
   folder?: string;
+  originalUrl?: string; // 原图URL(下载用)
 }
 
 // 搜索模式类型
