@@ -130,24 +130,6 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
   }, [showMoveMenu]);
 
   useEffect(() => {
-    const handleScroll = (e: Event) => {
-      const target = e.target as HTMLElement;
-      if (target.scrollTop === 0 && hasMoreMessages && !isLoadingMore) {
-        loadMoreMessages();
-      }
-    };
-    const container = messagesContainerRef.current;
-    if (container) {
-      container.addEventListener('scroll', handleScroll);
-    }
-    return () => {
-      if (container) {
-        container.removeEventListener('scroll', handleScroll);
-      }
-    };
-  }, [hasMoreMessages, isLoadingMore]);
-
-  useEffect(() => {
     setFilePage(1);
   }, [searchTerm, currentFolder, isMobile]);
 
@@ -174,8 +156,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
   const updateDisplayMessages = (all: TransferMessage[], offset: number) => {
     const PAGE_SIZE = 5;
     const start = Math.max(0, all.length - offset - PAGE_SIZE);
-    const end = all.length - offset;
-    setMessages(all.slice(start, end));
+    setMessages(all.slice(start));
     setHasMoreMessages(start > 0);
   };
 

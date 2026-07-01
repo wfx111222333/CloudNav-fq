@@ -2300,7 +2300,7 @@ function App() {
             
             <div className="grid grid-cols-3 gap-2 mb-2">
                 <button 
-                    onClick={() => { if(!authToken) setIsAuthOpen(true); else setIsImportModalOpen(true); }}
+                    onClick={() => { if(!authToken) setIsAuthOpen(true); else setIsImportModalOpen(true); setSidebarOpen(false); }}
                     className="flex flex-col items-center justify-center gap-1 p-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 transition-all"
                     title="导入书签"
                 >
@@ -2309,7 +2309,7 @@ function App() {
                 </button>
                 
                 <button 
-                    onClick={() => { if(!authToken) setIsAuthOpen(true); else setIsBackupModalOpen(true); }}
+                    onClick={() => { if(!authToken) setIsAuthOpen(true); else setIsBackupModalOpen(true); setSidebarOpen(false); }}
                     className="flex flex-col items-center justify-center gap-1 p-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 transition-all"
                     title="备份与恢复"
                 >
@@ -2319,7 +2319,7 @@ function App() {
 
                 {authToken && (
                   <button 
-                      onClick={() => setIsSettingsModalOpen(true)}
+                      onClick={() => { setIsSettingsModalOpen(true); setSidebarOpen(false); }}
                       className="flex flex-col items-center justify-center gap-1 p-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 transition-all"
                       title="设置"
                   >
