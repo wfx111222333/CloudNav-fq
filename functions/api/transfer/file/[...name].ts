@@ -17,9 +17,9 @@ const authenticate = (request: Request, env: Env): boolean => {
   return providedPassword === serverPassword;
 };
 
-export async function onRequestGet(context: { env: Env; request: Request; params: { name: string } }) {
+export async function onRequestGet(context: { env: Env; request: Request; params: { name: string | string[] } }) {
   const { env, params } = context;
-  const fileName = params.name;
+  const fileName = Array.isArray(params.name) ? params.name.join('/') : params.name;
 
   const object = await env.CLOUDNAV_R2.get(fileName);
 
@@ -39,9 +39,9 @@ export async function onRequestGet(context: { env: Env; request: Request; params
   });
 }
 
-export async function onRequestDelete(context: { env: Env; request: Request; params: { name: string } }) {
+export async function onRequestDelete(context: { env: Env; request: Request; params: { name: string | string[] } }) {
   const { env, request, params } = context;
-  const fileName = params.name;
+  const fileName = Array.isArray(params.name) ? params.name.join('/') : params.name;
 
   if (!authenticate(request, env)) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {

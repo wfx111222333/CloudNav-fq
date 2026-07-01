@@ -45,7 +45,7 @@ const generateSvgIcon = (text: string, color1: string, color2: string) => {
             </linearGradient>
         </defs>
         <rect width="100%" height="100%" fill="url(#${gradientId})" rx="16"/>
-        <text x="50%" y="50%" dy=".35em" fill="white" font-family="Arial, sans-serif" font-weight="bold" font-size="32" text-anchor="middle">${char}</text>
+        <text x="50%" y="50%" dy=".35em" fill="white" font-family="Arial, "PingFang SC", "Microsoft YaHei", sans-serif" font-weight="bold" font-size="32" text-anchor="middle">${char}</text>
     </svg>`.trim();
 
     try {

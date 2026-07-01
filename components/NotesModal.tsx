@@ -200,7 +200,7 @@ export default function NotesModal({ isOpen, onClose, authToken }: NotesModalPro
             <div className="space-y-6">
               {pinnedNotes.length > 0 && (
                 <div>
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase mb-3 flex items-center gap-2">
                     <Pin className="w-3 h-3" />
                     置顶
                   </h3>
@@ -275,7 +275,7 @@ export default function NotesModal({ isOpen, onClose, authToken }: NotesModalPro
 
               {normalNotes.length > 0 && (
                 <div>
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase mb-3">
                     所有便签
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

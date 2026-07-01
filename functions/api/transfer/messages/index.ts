@@ -20,17 +20,57 @@ const authenticate = (request: Request, env: Env): boolean => {
 
 export async function onRequestGet(context: { env: Env; request: Request }) {
   const { env, request } = context;
-  
+
   if (!authenticate(request, env)) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   }
-  
+
+  const url = new URL(request.url);
+  const params = url.searchParams;
+  const type = params.get('type');
+  const days = params.get('days');
+  const before = params.get('before');
+  const limit = parseInt(params.get('limit') || '50');
+
   const data = await env.CLOUDNAV_KV.get('transfer_messages');
-  const messages = data ? JSON.parse(data) : [];
-  return new Response(JSON.stringify(messages), {
+  const allMessages = data ? JSON.parse(data) : [];
+
+  // 模式1: ?type=file — 返回所有非文本消息（用于文件管理标签）
+  if (type === 'file') {
+    const fileMsgs = allMessages
+      .filter((m: any) => m.type !== 'text')
+      .sort((a: any, b: any) => a.createdAt - b.createdAt);
+    return new Response(JSON.stringify({ messages: fileMsgs, total: fileMsgs.length, hasMore: false }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  // 模式2: ?before=<timestamp>&limit=N — 加载更早的历史消息
+  if (before) {
+    const beforeTs = parseInt(before);
+    const older = allMessages
+      .filter((m: any) => m.createdAt < beforeTs)
+      .sort((a: any, b: any) => b.createdAt - a.createdAt)
+      .slice(0, limit)
+      .reverse();
+    const totalCount = allMessages.filter((m: any) => m.createdAt < beforeTs).length;
+    const hasMore = totalCount > limit;
+    return new Response(JSON.stringify({ messages: older, total: allMessages.length, hasMore }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  // 模式3: ?days=N (默认7天) — 返回最近N天的消息
+  const dayCount = parseInt(days || '7');
+  const cutoff = Date.now() - dayCount * 86400000;
+  const recent = allMessages
+    .filter((m: any) => m.createdAt >= cutoff)
+    .sort((a: any, b: any) => a.createdAt - b.createdAt);
+  const hasMore = allMessages.some((m: any) => m.createdAt < cutoff);
+  return new Response(JSON.stringify({ messages: recent, total: allMessages.length, hasMore }), {
     headers: { 'Content-Type': 'application/json', ...corsHeaders },
   });
 }

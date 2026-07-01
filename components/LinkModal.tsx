@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { X, Sparkles, Loader2, Pin, Wand2, Trash2, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Sparkles, Loader2, Pin, Wand2, Trash2, Eye, EyeOff, Upload } from 'lucide-react';
 import { LinkItem, Category, AIConfig } from '../types';
 import { generateLinkDescription, suggestCategory } from '../services/geminiService';
+import { compressImage } from '../lib/compressImage';
 
 interface LinkModalProps {
   isOpen: boolean;
@@ -27,6 +28,8 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, onDelete
   const [batchMode, setBatchMode] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [isPrivate, setIsPrivate] = useState(false);
+  const [isUploadingIcon, setIsUploadingIcon] = useState(false);
+  const iconFileInputRef = useRef<HTMLInputElement>(null);
   
   // 当模态框关闭时，重置批量模式为默认关闭状态
   useEffect(() => {
@@ -142,8 +145,8 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, onDelete
       private: isPrivate
     });
     
-    // 如果有自定义图标URL，缓存到KV空间
-    if (icon && !icon.includes('gstatic.cn')) {
+    // 如果有自定义图标URL，缓存到KV空间（上传的图标不需要缓存）
+    if (icon && !icon.includes('gstatic.cn') && !icon.startsWith('/api/transfer/file/')) {
       cacheCustomIcon(finalUrl, icon);
     }
     
@@ -253,6 +256,56 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, onDelete
     } finally {
       setIsFetchingIcon(false);
     }
+  };
+
+  const handleUploadIcon = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    if (!file.type.startsWith('image/')) {
+      alert('请选择图片文件');
+      return;
+    }
+
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) {
+      alert('请先登录后再上传图标');
+      return;
+    }
+
+    setIsUploadingIcon(true);
+    try {
+      const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+      let blob: Blob;
+      try {
+        blob = await compressImage(file, 64, 0.8, mimeType);
+      } catch {
+        blob = file;
+      }
+
+      const formData = new FormData();
+      formData.append('file', blob, 'icon.png');
+      formData.append('folder', '图标文件夹');
+
+      const response = await fetch('/api/transfer/upload', {
+        method: 'POST',
+        headers: { 'x-auth-password': authToken },
+        body: formData,
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setIcon(result.fileUrl);
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        alert(`图标上传失败: ${errData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Failed to upload icon', error);
+      alert('网络错误，图标上传失败');
+    }
+    setIsUploadingIcon(false);
   };
 
   if (!isOpen) return null;
@@ -385,6 +438,27 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, onDelete
                   <Wand2 className="w-4 h-4" />
                 )}
                 获取图标
+              </button>
+              <input
+                ref={iconFileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleUploadIcon}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => iconFileInputRef.current?.click()}
+                disabled={isUploadingIcon}
+                className="px-3 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:bg-gray-400 flex items-center gap-1 transition-colors"
+                title="上传图标文件"
+              >
+                {isUploadingIcon ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4" />
+                )}
+                上传
               </button>
             </div>
             <div className="flex items-center gap-2 mt-2">
