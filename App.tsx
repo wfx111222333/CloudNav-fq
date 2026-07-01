@@ -1859,14 +1859,6 @@ function App() {
   const iconImgSize = Math.round(iconContainerSize * 0.625);
 
   const GRID_COLUMNS_MAP: Record<number, { detailed: string; simple: string }> = {
-    3: {
-      detailed: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3',
-      simple: 'grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3',
-    },
-    4: {
-      detailed: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4',
-      simple: 'grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4',
-    },
     5: {
       detailed: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5',
       simple: 'grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5',
@@ -1874,6 +1866,30 @@ function App() {
     6: {
       detailed: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6',
       simple: 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6',
+    },
+    7: {
+      detailed: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7',
+      simple: 'grid-cols-3 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-7',
+    },
+    8: {
+      detailed: 'grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8',
+      simple: 'grid-cols-3 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8',
+    },
+    9: {
+      detailed: 'grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-9',
+      simple: 'grid-cols-3 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-9',
+    },
+    10: {
+      detailed: 'grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10',
+      simple: 'grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10',
+    },
+    11: {
+      detailed: 'grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-9 xl:grid-cols-11',
+      simple: 'grid-cols-4 md:grid-cols-7 lg:grid-cols-9 xl:grid-cols-11',
+    },
+    12: {
+      detailed: 'grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-9 xl:grid-cols-12',
+      simple: 'grid-cols-4 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12',
     },
   };
   const gridCols = siteSettings.gridColumns ?? 6;

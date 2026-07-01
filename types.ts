@@ -31,7 +31,7 @@ export interface SiteSettings {
   titleColor?: string; // 卡片标题颜色
   titleFontSize?: number; // 卡片标题字号
   backgroundImage?: string; // 背景图URL
-  gridColumns?: number; // 网格列数(3-6, 默认6)
+  gridColumns?: number; // 网格列数(5-12, 默认6)
 }
 
 export interface AppState {

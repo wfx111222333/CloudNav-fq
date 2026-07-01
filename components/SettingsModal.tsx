@@ -1278,15 +1278,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <div className="flex items-center gap-3">
                                     <input
                                         type="range"
-                                        min="3"
-                                        max="6"
+                                        min="5"
+                                        max="12"
                                         value={localSiteSettings.gridColumns ?? 6}
                                         onChange={(e) => handleSiteChange('gridColumns', parseInt(e.target.value))}
                                         className="flex-1 accent-blue-500"
                                     />
                                     <span className="text-sm text-slate-600 dark:text-slate-400 w-12 text-right">{localSiteSettings.gridColumns ?? 6} 列</span>
                                 </div>
-                                <p className="text-xs text-slate-500 mt-1">设置每行最多显示的链接卡片数量 (3-6)</p>
+                                <p className="text-xs text-slate-500 mt-1">设置每行最多显示的链接卡片数量 (5-12)</p>
                             </div>
                         </div>
                     </div>
