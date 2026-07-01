@@ -60,30 +60,26 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     const fileName = `${baseName}.${fileExtension}`;
     const fileBytes = await file.arrayBuffer();
 
-    // R2 key 包含文件夹前缀，镜像目录结构
-    const folderPrefix = folder ? `${folder}/` : '';
-    const r2Key = `${folderPrefix}${fileName}`;
-    const r2ThumbKey = `${folderPrefix}${baseName}_thumb.jpg`;
-
-    await env.CLOUDNAV_R2.put(r2Key, fileBytes, {
+    await env.CLOUDNAV_R2.put(fileName, fileBytes, {
       httpMetadata: {
         contentType: file.type || 'application/octet-stream',
       },
     });
 
     const isImage = file.type.startsWith('image/');
-    const fileUrl = `/api/transfer/file/${folder ? encodeURIComponent(folder) + '/' : ''}${fileName}`;
+    const fileUrl = `/api/transfer/file/${fileName}`;
 
     // 存储缩略图（若提供），用于图片显示；原图保留用于下载
     let thumbnailUrl: string | undefined;
     if (isImage && thumbnail) {
+      const thumbName = `${baseName}_thumb.jpg`;
       const thumbBytes = await thumbnail.arrayBuffer();
-      await env.CLOUDNAV_R2.put(r2ThumbKey, thumbBytes, {
+      await env.CLOUDNAV_R2.put(thumbName, thumbBytes, {
         httpMetadata: {
           contentType: 'image/jpeg',
         },
       });
-      thumbnailUrl = `/api/transfer/file/${folder ? encodeURIComponent(folder) + '/' : ''}${baseName}_thumb.jpg`;
+      thumbnailUrl = `/api/transfer/file/${thumbName}`;
     }
 
     const data = await env.CLOUDNAV_KV.get('transfer_messages');

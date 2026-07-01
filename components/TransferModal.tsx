@@ -2,6 +2,33 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, Image, Paperclip, Trash2, Download, Copy, Folder, FolderPlus, Search, Grid, List, Move } from 'lucide-react';
 import { TransferMessage } from '../types';
 
+interface TransferModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  authToken: string;
+}
+
+const isImageUrl = (url: string): boolean => {
+  const ext = url.split('.').pop()?.toLowerCase();
+  return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(ext || '');
+};
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+};
+
+const formatTime = (timestamp: number): string => {
+  const date = new Date(timestamp);
+  return date.toLocaleString('zh-CN', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 const compressImage = (file: File, maxSize: number = 300, quality: number = 0.7): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -39,38 +66,8 @@ const compressImage = (file: File, maxSize: number = 300, quality: number = 0.7)
   });
 };
 
-interface TransferModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  authToken: string;
-}
-
-const isImageUrl = (url: string): boolean => {
-  const ext = url.split('.').pop()?.toLowerCase();
-  return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(ext || '');
-};
-
-const formatFileSize = (bytes: number): string => {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-};
-
-const formatTime = (timestamp: number): string => {
-  const date = new Date(timestamp);
-  return date.toLocaleString('zh-CN', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
-
-
 export default function TransferModal({ isOpen, onClose, authToken }: TransferModalProps) {
   const [messages, setMessages] = useState<TransferMessage[]>([]);
-  const [fileMessages, setFileMessages] = useState<TransferMessage[]>([]);
-  const [fileMessagesLoaded, setFileMessagesLoaded] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
@@ -86,38 +83,14 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
   const [newFolderName, setNewFolderName] = useState('');
   const [showNewFolderInput, setShowNewFolderInput] = useState(false);
 
-  // 分页状态
-  const [currentPage, setCurrentPage] = useState(1);
-  const [gridColumns, setGridColumns] = useState(3);
-
-  // 消息分页/历史加载状态
-  const [hasMore, setHasMore] = useState(false);
-  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
-  const [messagesTotal, setMessagesTotal] = useState(0);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const isPrependingRef = useRef(false);
-  const prevScrollHeightRef = useRef(0);
-  const oldestCreatedAtRef = useRef<number | null>(null);
-
   useEffect(() => {
     if (isOpen && authToken) {
       fetchMessages();
     }
   }, [isOpen, authToken]);
 
-  // 自动滚动到底部（仅在非预加载历史时）
   useEffect(() => {
-    if (isPrependingRef.current) return;
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  // 预加载历史消息后恢复滚动位置
-  useEffect(() => {
-    if (isPrependingRef.current && messagesContainerRef.current) {
-      const newScrollHeight = messagesContainerRef.current.scrollHeight;
-      messagesContainerRef.current.scrollTop = newScrollHeight - prevScrollHeightRef.current;
-      isPrependingRef.current = false;
-    }
   }, [messages]);
 
   useEffect(() => {
@@ -135,54 +108,17 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
   const fetchMessages = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/transfer/messages?days=7', {
+      const response = await fetch('/api/transfer/messages', {
         headers: { 'x-auth-password': authToken },
       });
       if (response.ok) {
         const data = await response.json();
-        const msgs = (data.messages || data).sort((a: TransferMessage, b: TransferMessage) => a.createdAt - b.createdAt);
-        setMessages(msgs);
-        setMessagesTotal(data.total ?? msgs.length);
-        setHasMore(data.hasMore ?? false);
-        oldestCreatedAtRef.current = msgs.length > 0 ? msgs[0].createdAt : null;
+        setMessages(data.sort((a: TransferMessage, b: TransferMessage) => a.createdAt - b.createdAt));
       }
     } catch (error) {
       console.error('Failed to fetch messages', error);
     }
     setIsLoading(false);
-  };
-
-  const fetchOlderMessages = async () => {
-    if (!hasMore || isLoadingOlder || oldestCreatedAtRef.current === null) return;
-    setIsLoadingOlder(true);
-    isPrependingRef.current = true;
-    if (messagesContainerRef.current) {
-      prevScrollHeightRef.current = messagesContainerRef.current.scrollHeight;
-    }
-    try {
-      const response = await fetch(`/api/transfer/messages?before=${oldestCreatedAtRef.current}&limit=50`, {
-        headers: { 'x-auth-password': authToken },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const older = (data.messages || []).sort((a: TransferMessage, b: TransferMessage) => a.createdAt - b.createdAt);
-        if (older.length > 0) {
-          setMessages(prev => [...older, ...prev]);
-          oldestCreatedAtRef.current = older[0].createdAt;
-        }
-        setHasMore(data.hasMore ?? false);
-      }
-    } catch (error) {
-      console.error('Failed to fetch older messages', error);
-      isPrependingRef.current = false;
-    }
-    setIsLoadingOlder(false);
-  };
-
-  const handleMessagesScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (e.currentTarget.scrollTop < 50 && hasMore && !isLoadingOlder) {
-      fetchOlderMessages();
-    }
   };
 
   const sendMessage = async () => {
@@ -205,7 +141,6 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
       if (response.ok) {
         const newMessage = await response.json();
         setMessages(prev => [...prev, newMessage]);
-        setMessagesTotal(prev => prev + 1);
         setInputValue('');
       }
     } catch (error) {
@@ -264,10 +199,6 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
         };
 
         setMessages(prev => [...prev, newMessage]);
-        if (newMessage.type !== 'text') {
-          setFileMessages(prev => [...prev, newMessage]);
-        }
-        setMessagesTotal(prev => prev + 1);
       } else {
         const errorData = await response.json().catch(() => ({}));
         if (response.status === 401) {
@@ -300,19 +231,27 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
       });
 
       if (message.type !== 'text') {
-        // 直接通过存储的 URL 删除 R2 文件，避免从 URL 提取文件名时丢失文件夹前缀
-        const urlsToDelete = [message.content, message.originalUrl].filter(Boolean) as string[];
-        const uniqueUrls = [...new Set(urlsToDelete)];
-        for (const url of uniqueUrls) {
-          await fetch(url, {
+        // 删除显示用文件（缩略图或原图）
+        const displayFilename = message.content.split('/').pop();
+        if (displayFilename) {
+          await fetch(`/api/transfer/file/${displayFilename}`, {
             method: 'DELETE',
             headers: { 'x-auth-password': authToken },
           });
         }
+        // 若存在原图URL（说明显示用的是缩略图），还需删除原图
+        if (message.originalUrl) {
+          const originalFilename = message.originalUrl.split('/').pop();
+          if (originalFilename && originalFilename !== displayFilename) {
+            await fetch(`/api/transfer/file/${originalFilename}`, {
+              method: 'DELETE',
+              headers: { 'x-auth-password': authToken },
+            });
+          }
+        }
       }
 
       setMessages(prev => prev.filter(m => m.id !== message.id));
-      setFileMessages(prev => prev.filter(m => m.id !== message.id));
     } catch (error) {
       console.error('Failed to delete message', error);
     }
@@ -330,7 +269,6 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
       });
 
       setMessages(prev => prev.map(m => m.id === message.id ? { ...m, folder } : m));
-      setFileMessages(prev => prev.map(m => m.id === message.id ? { ...m, folder } : m));
       setShowMoveMenu(null);
     } catch (error) {
       console.error('Failed to move file', error);
@@ -366,57 +304,13 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
     }
   };
 
+  const fileMessages = messages.filter(m => m.type !== 'text');
   const folders: string[] = Array.from(new Set(fileMessages.map(m => m.folder || '').filter(f => f !== '')));
   const filteredFiles = fileMessages.filter(m => {
     const folderMatch = currentFolder === '' ? true : (m.folder || '') === currentFolder;
     const searchMatch = !searchTerm || (m.fileName || '').toLowerCase().includes(searchTerm.toLowerCase());
     return folderMatch && searchMatch;
   });
-
-  // 分页：网格视图3行（列数×3），列表视图3项
-  const pageSize = fileViewMode === 'grid' ? gridColumns * 3 : 3;
-  const totalPages = Math.max(1, Math.ceil(filteredFiles.length / pageSize));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-  const pagedFiles = filteredFiles.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
-
-  // 检测屏幕宽度以确定网格列数
-  useEffect(() => {
-    const updateColumns = () => {
-      setGridColumns(window.matchMedia('(min-width: 640px)').matches ? 4 : 3);
-    };
-    updateColumns();
-    window.addEventListener('resize', updateColumns);
-    return () => window.removeEventListener('resize', updateColumns);
-  }, []);
-
-  // 搜索/文件夹/视图模式变化时重置页码
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, currentFolder, fileViewMode, gridColumns]);
-
-  // 懒加载文件消息（首次切换到文件标签时）
-  const fetchFileMessages = async () => {
-    if (fileMessagesLoaded) return;
-    try {
-      const response = await fetch('/api/transfer/messages?type=file', {
-        headers: { 'x-auth-password': authToken },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const msgs = (data.messages || data).sort((a: TransferMessage, b: TransferMessage) => a.createdAt - b.createdAt);
-        setFileMessages(msgs);
-        setFileMessagesLoaded(true);
-      }
-    } catch (error) {
-      console.error('Failed to fetch file messages', error);
-    }
-  };
-
-  useEffect(() => {
-    if (isOpen && authToken && activeTab === 'files' && !fileMessagesLoaded) {
-      fetchFileMessages();
-    }
-  }, [isOpen, authToken, activeTab, fileMessagesLoaded]);
 
   if (!isOpen) return null;
 
@@ -449,7 +343,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                 : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
             }`}
           >
-            消息 ({messagesTotal})
+            消息 ({messages.length})
           </button>
           <button
             onClick={() => setActiveTab('files')}
@@ -466,11 +360,9 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
         {activeTab === 'messages' ? (
           <>
             <div
-              ref={messagesContainerRef}
               className="flex-1 overflow-y-auto p-4 space-y-4"
               onDrop={handleDrop}
               onDragOver={handleDragOver}
-              onScroll={handleMessagesScroll}
             >
               {isLoading ? (
                 <div className="flex items-center justify-center py-12">
@@ -484,17 +376,6 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {isLoadingOlder && (
-                    <div className="flex items-center justify-center py-3">
-                      <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                      <span className="ml-2 text-sm text-slate-400">加载中...</span>
-                    </div>
-                  )}
-                  {!hasMore && !isLoadingOlder && (
-                    <div className="text-center py-2">
-                      <span className="text-xs text-slate-400">没有更多消息</span>
-                    </div>
-                  )}
                   {messages.map(message => (
                     <div key={message.id} className="flex gap-3 group">
                       <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
@@ -516,7 +397,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                               <img
                                 src={message.content}
                                 alt={message.fileName}
-                                onClick={() => setPreviewImage(message.originalUrl || message.content)}
+                                onClick={() => setPreviewImage(message.content)}
                                 className="max-w-sm max-h-64 object-contain rounded-xl cursor-pointer hover:opacity-90 transition-opacity"
                               />
                               <div className="flex gap-1 mt-1">
@@ -736,7 +617,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                 </div>
               ) : fileViewMode === 'grid' ? (
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                  {pagedFiles.map(message => (
+                  {filteredFiles.map(message => (
                     <div
                       key={message.id}
                       className="relative group bg-slate-50 dark:bg-slate-800 rounded-xl p-3 hover:shadow-md transition-shadow"
@@ -746,7 +627,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                           <img
                             src={message.content}
                             alt={message.fileName}
-                            onClick={() => setPreviewImage(message.originalUrl || message.content)}
+                            onClick={() => setPreviewImage(message.content)}
                             className="w-16 h-16 object-cover rounded-lg cursor-pointer"
                           />
                         ) : (
@@ -810,7 +691,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {pagedFiles.map(message => (
+                  {filteredFiles.map(message => (
                     <div
                       key={message.id}
                       className="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
@@ -819,7 +700,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                         <img
                           src={message.content}
                           alt={message.fileName}
-                          onClick={() => setPreviewImage(message.originalUrl || message.content)}
+                          onClick={() => setPreviewImage(message.content)}
                           className="w-10 h-10 object-cover rounded-lg cursor-pointer flex-shrink-0"
                         />
                       ) : (
@@ -893,28 +774,6 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                   <span className="text-sm text-blue-600 dark:text-blue-300">
                     正在上传 {uploadingFiles.size} 个文件...
                   </span>
-                </div>
-              )}
-
-              {filteredFiles.length > pageSize && (
-                <div className="flex items-center justify-center gap-4 py-3 mt-2 border-t border-slate-200 dark:border-slate-700">
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={safeCurrentPage <= 1}
-                    className="px-3 py-1 text-sm rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                  >
-                    上一页
-                  </button>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {safeCurrentPage} / {totalPages}
-                  </span>
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={safeCurrentPage >= totalPages}
-                    className="px-3 py-1 text-sm rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                  >
-                    下一页
-                  </button>
                 </div>
               )}
             </div>
