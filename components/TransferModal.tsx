@@ -885,29 +885,29 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                   </span>
                 </div>
               )}
-
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
-                  <button
-                    onClick={() => setFilePage(p => Math.max(1, p - 1))}
-                    disabled={filePage === 1}
-                    className="px-2 py-1 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed rounded"
-                  >
-                    上一页
-                  </button>
-                  <span className="text-xs text-slate-400">
-                    第 {filePage} / {totalPages} 页
-                  </span>
-                  <button
-                    onClick={() => setFilePage(p => Math.min(totalPages, p + 1))}
-                    disabled={filePage === totalPages}
-                    className="px-2 py-1 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed rounded"
-                  >
-                    下一页
-                  </button>
-                </div>
-              )}
             </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 py-2 px-3 border-t border-slate-200 dark:border-slate-700 flex-shrink-0 bg-slate-50 dark:bg-slate-800/50">
+                <button
+                  onClick={() => setFilePage(p => Math.max(1, p - 1))}
+                  disabled={filePage === 1}
+                  className="px-3 py-1 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed rounded"
+                >
+                  上一页
+                </button>
+                <span className="text-xs text-slate-400">
+                  第 {filePage} / {totalPages} 页
+                </span>
+                <button
+                  onClick={() => setFilePage(p => Math.min(totalPages, p + 1))}
+                  disabled={filePage === totalPages}
+                  className="px-3 py-1 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed rounded"
+                >
+                  下一页
+                </button>
+              </div>
+            )}
 
             <div className="p-3 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
               <button
