@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Image, Paperclip, Trash2, Download, Copy, Folder, FolderPlus, Search, Grid, List, Move } from 'lucide-react';
+import { X, Send, Image as ImageIcon, Paperclip, Trash2, Download, Copy, Folder, FolderPlus, Search, Grid, List, Move } from 'lucide-react';
 import { TransferMessage } from '../types';
 
 interface TransferModalProps {
@@ -534,7 +534,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                     className="p-2.5 text-slate-500 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
                     title="选择图片"
                   >
-                    <Image className="w-5 h-5" />
+                    <ImageIcon className="w-5 h-5" />
                   </button>
                 </div>
 
