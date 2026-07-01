@@ -90,7 +90,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const [filePage, setFilePage] = useState(1);
-  const FILES_PER_PAGE = 12;
+  const FILES_PER_PAGE = 6;
 
   useEffect(() => {
     if (isOpen && authToken) {
@@ -886,7 +886,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                 </div>
               )}
 
-              {filteredFiles.length > FILES_PER_PAGE && (
+              {totalPages > 1 && (
                 <div className="flex items-center justify-center gap-2 mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
                   <button
                     onClick={() => setFilePage(p => Math.max(1, p - 1))}
