@@ -103,6 +103,14 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
   }, [messages]);
 
   useEffect(() => {
+    if (activeTab === 'messages') {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
     if (!showMoveMenu) return;
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -353,7 +361,8 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
 
   const copyLink = async (url: string) => {
     try {
-      await navigator.clipboard.writeText(url);
+      const fullUrl = url.startsWith('http') ? url : `${window.location.origin}${url}`;
+      await navigator.clipboard.writeText(fullUrl);
       alert('链接已复制到剪贴板');
     } catch (error) {
       console.error('Failed to copy', error);
@@ -423,10 +432,25 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
               onDrop={handleDrop}
               onDragOver={handleDragOver}
             >
-              {isLoadingMore && hasMoreMessages && (
+              {hasMoreMessages && messages.length > 0 && (
                 <div className="flex items-center justify-center py-2">
-                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                  <span className="ml-2 text-xs text-slate-400">加载更多...</span>
+                  <button
+                    onClick={loadMoreMessages}
+                    disabled={isLoadingMore}
+                    className="flex items-center gap-1 px-3 py-1 text-xs text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                  >
+                    {isLoadingMore ? (
+                      <>
+                        <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                        <span>加载中...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>↓</span>
+                        <span>刷新更多消息</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               )}
               {isLoading ? (
@@ -692,11 +716,14 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                           <img
                             src={message.content}
                             alt={message.fileName}
-                            onClick={() => setPreviewImage(message.content)}
+                            onClick={() => setPreviewImage(message.originalUrl || message.content)}
                             className="w-16 h-16 object-cover rounded-lg cursor-pointer"
                           />
                         ) : (
-                          <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                          <div
+                            className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800/30 transition-colors"
+                            onClick={() => window.open(message.content, '_blank')}
+                          >
                             <Paperclip className="w-6 h-6 text-blue-500" />
                           </div>
                         )}
@@ -714,6 +741,13 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                           title="移动"
                         >
                           <Move className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => copyLink(message.content)}
+                          className="p-1 bg-black/50 rounded text-white hover:bg-green-500"
+                          title="复制链接"
+                        >
+                          <Copy className="w-3 h-3" />
                         </button>
                         <a
                           href={message.originalUrl || message.content}
@@ -765,11 +799,14 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                         <img
                           src={message.content}
                           alt={message.fileName}
-                          onClick={() => setPreviewImage(message.content)}
+                          onClick={() => setPreviewImage(message.originalUrl || message.content)}
                           className="w-10 h-10 object-cover rounded-lg cursor-pointer flex-shrink-0"
                         />
                       ) : (
-                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <div
+                          className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center flex-shrink-0 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800/30 transition-colors"
+                          onClick={() => window.open(message.content, '_blank')}
+                        >
                           <Paperclip className="w-5 h-5 text-blue-500" />
                         </div>
                       )}
@@ -812,6 +849,13 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
                             </div>
                           )}
                         </div>
+                        <button
+                          onClick={() => copyLink(message.content)}
+                          className="p-1.5 text-slate-400 hover:text-green-500 transition-colors"
+                          title="复制链接"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
                         <a
                           href={message.originalUrl || message.content}
                           download
