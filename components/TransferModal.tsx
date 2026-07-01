@@ -90,7 +90,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const [filePage, setFilePage] = useState(1);
-  const FILES_PER_PAGE = 9;
+  const FILES_PER_PAGE = 12;
 
   useEffect(() => {
     if (isOpen && authToken) {
@@ -572,7 +572,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
             </div>
           </>
         ) : (
-          <>
+          <div className="flex flex-col h-full">
             <div className="flex items-center gap-2 p-3 border-b border-slate-200 dark:border-slate-700 flex-wrap">
               <div className="flex items-center gap-1 flex-wrap">
                 <button
@@ -865,7 +865,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
               )}
             </div>
 
-            <div className="p-3 border-t border-slate-200 dark:border-slate-700">
+            <div className="p-3 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
               <button
                 onClick={() => document.getElementById('file-mgr-input')?.click()}
                 className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors"
@@ -875,7 +875,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
               </button>
               <input id="file-mgr-input" type="file" multiple onChange={handleFileSelect} className="hidden" />
             </div>
-          </>
+          </div>
         )}
       </div>
 
