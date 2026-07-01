@@ -1956,7 +1956,7 @@ function App() {
 
           {/* 描述文字 */}
           {isDetailedView && link.description && (
-            <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2 break-words mt-1">
+            <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2 mt-1">
               {link.description}
             </p>
           )}
@@ -2017,7 +2017,7 @@ function App() {
             </h3>
             {/* 描述文字 */}
             {isDetailedView && link.description && (
-              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2 break-words mt-1">
+              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2 mt-1">
                 {link.description}
               </p>
             )}
@@ -2051,7 +2051,7 @@ function App() {
             </h3>
             {/* 描述文字 */}
             {isDetailedView && link.description && (
-              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2 break-words mt-1">
+              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2 mt-1">
                 {link.description}
               </p>
             )}
@@ -2218,7 +2218,7 @@ function App() {
             )}
             
             <div className="flex items-center justify-between pt-4 pb-2 px-8">
-               <span className="text-xs font-semibold text-slate-400 uppercase">分类目录</span>
+               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">分类目录</span>
                <button 
                   onClick={() => { if(!authToken) setIsAuthOpen(true); else setIsCatManagerOpen(true); }}
                   className="p-1 text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"
@@ -2271,7 +2271,7 @@ function App() {
                         <div className="absolute -left-4 top-0 bottom-0 w-4 bg-transparent" />
                         
                         <div className="px-4 py-1 mb-1 border-b border-slate-100 dark:border-slate-700">
-                          <span className="font-bold text-slate-400 uppercase" style={{ fontSize: '13px' }}>{cat.name} / 二级分类</span>
+                          <span className="font-bold text-slate-400 uppercase tracking-widest" style={{ fontSize: '13px' }}>{cat.name} / 二级分类</span>
                         </div>
                         {subCats.map(subCat => {
                           const isSubLocked = isCategoryLocked(subCat.id);
@@ -3010,7 +3010,7 @@ function App() {
             {/* 其他目录搜索结果区域 */}
             {searchQuery.trim() && selectedCategory !== 'all' && (
               <section className="mt-8 pt-8 border-t-2 border-slate-200 dark:border-slate-700">
-                <h2 className="text-sm font-bold uppercase text-slate-500 dark:text-slate-400 flex items-center gap-2 mb-4">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2 mb-4">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-folder-search">
                     <circle cx="11" cy="11" r="8"></circle>
                     <path d="m21 21-4.35-4.35"></path>
