@@ -90,7 +90,14 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const [filePage, setFilePage] = useState(1);
-  const FILES_PER_PAGE = 6;
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 640 : false);
+  const FILES_PER_PAGE = isMobile ? 4 : 12;
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     if (isOpen && authToken) {
@@ -142,7 +149,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
 
   useEffect(() => {
     setFilePage(1);
-  }, [searchTerm, currentFolder]);
+  }, [searchTerm, currentFolder, isMobile]);
 
   const fetchMessages = async () => {
     setIsLoading(true);
