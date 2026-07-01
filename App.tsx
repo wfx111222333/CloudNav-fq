@@ -2540,55 +2540,31 @@ function App() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* 视图切换控制器 - 移动端：搜索框展开时隐藏，桌面端始终显示 */}
-            <div className={`${isMobileSearchOpen ? 'hidden' : 'flex'} lg:flex items-center bg-slate-100 dark:bg-slate-700 rounded-full p-1`}>
-              <button
-                onClick={() => handleViewModeChange('simple')}
-                className={`px-3 py-1 text-xs font-medium rounded-full transition-all ${
-                  siteSettings.cardStyle === 'simple'
-                    ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100'
-                }`}
-                title="简约版视图"
-              >
-                简约
-              </button>
-              <button
-                onClick={() => handleViewModeChange('detailed')}
-                className={`px-3 py-1 text-xs font-medium rounded-full transition-all ${
-                  siteSettings.cardStyle === 'detailed'
-                    ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100'
-                }`}
-                title="详情版视图"
-              >
-                详情
-              </button>
-            </div>
+            {/* 视图切换 - 下拉选择，节省移动端横向空间 */}
+            <select
+              value={siteSettings.cardStyle}
+              onChange={(e) => handleViewModeChange(e.target.value as 'detailed' | 'simple')}
+              className={`${isMobileSearchOpen ? 'hidden' : 'block'} lg:block bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-full px-3 py-1.5 border-none outline-none cursor-pointer focus:ring-2 focus:ring-blue-500`}
+              title="切换视图模式"
+            >
+              <option value="simple">简约</option>
+              <option value="detailed">详情</option>
+            </select>
 
-            {/* 排序工具栏 - 仅在"所有网站"视图显示 */}
+            {/* 排序 - 下拉选择，仅在"所有网站"视图显示 */}
             {!searchQuery && selectedCategory === 'all' && (
-              <div className={`${isMobileSearchOpen ? 'hidden' : 'flex'} lg:flex items-center bg-slate-100 dark:bg-slate-700 rounded-full p-1`}>
-                {([
-                  { key: 'category', label: '默认' },
-                  { key: 'name', label: '名称' },
-                  { key: 'date', label: '日期' },
-                  { key: 'frequency', label: '频率' },
-                  { key: 'manual', label: '手动' },
-                ] as const).map(item => (
-                  <button
-                    key={item.key}
-                    onClick={() => setAllSortMode(item.key)}
-                    className={`px-3 py-1 text-xs font-medium rounded-full transition-all ${
-                      allSortMode === item.key
-                        ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
+              <select
+                value={allSortMode}
+                onChange={(e) => setAllSortMode(e.target.value as 'category' | 'name' | 'date' | 'frequency' | 'manual')}
+                className={`${isMobileSearchOpen ? 'hidden' : 'block'} lg:block bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-full px-3 py-1.5 border-none outline-none cursor-pointer focus:ring-2 focus:ring-blue-500`}
+                title="排序方式"
+              >
+                <option value="category">默认</option>
+                <option value="name">名称</option>
+                <option value="date">日期</option>
+                <option value="frequency">频率</option>
+                <option value="manual">手动</option>
+              </select>
             )}
 
             {/* 主题切换按钮 - 移动端：搜索框展开时隐藏，桌面端始终显示 */}
