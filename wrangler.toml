@@ -1,5 +1,5 @@
 name = "nav-fq-worker"
-main = "_worker.js"
+master = "_worker.js"
 compatibility_date = "2026-06-29"
 
 # 静态资源目录，对应打包输出dist
