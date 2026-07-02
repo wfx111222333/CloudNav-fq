@@ -91,7 +91,7 @@ export default function TransferModal({ isOpen, onClose, authToken }: TransferMo
 
   const [filePage, setFilePage] = useState(1);
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 640 : false);
-  const FILES_PER_PAGE = isMobile ? 4 : 12;
+  const FILES_PER_PAGE = isMobile ? 4 : 8;
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 640);

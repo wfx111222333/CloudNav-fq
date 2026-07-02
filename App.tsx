@@ -43,7 +43,7 @@ import QRCodeModal from './components/QRCodeModal';
 
 // --- 配置项 ---
 // 项目核心仓库地址
-const GITHUB_REPO_URL = 'https://github.com/aabacada/CloudNav-abcd';
+const GITHUB_REPO_URL = 'https://github.com/aabacada/CloudNav-fq';
 
 const LOCAL_STORAGE_KEY = 'cloudnav_data_cache';
 const AUTH_KEY = 'cloudnav_auth_token';
@@ -101,8 +101,8 @@ function App() {
           } catch (e) {}
       }
       return {
-          title: 'CloudNav - 我的导航',
-          navTitle: 'CloudNav',
+          title: '無-导航',
+          navTitle: '無-导航',
           favicon: '',
           cardStyle: 'detailed' as const,
           passwordExpiryDays: 7,
