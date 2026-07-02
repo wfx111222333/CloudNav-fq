@@ -1,5 +1,5 @@
 {
-  "name" : "CloudNav-fq",
+  "name" : "cloudnav-fq",
   "compatibility_date" : "2026-07-02",
   "assets" :{
     "directory" : "./dist",
