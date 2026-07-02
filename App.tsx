@@ -30,6 +30,7 @@ import Icon from './components/Icon';
 import LinkModal from './components/LinkModal';
 import NotesModal from './components/NotesModal';
 import TransferModal from './components/TransferModal';
+import TasksModal from './components/TasksModal';
 import AuthModal from './components/AuthModal';
 import CategoryManagerModal from './components/CategoryManagerModal';
 import BackupModal from './components/BackupModal';
@@ -119,6 +120,7 @@ function App() {
   const [isSearchConfigModalOpen, setIsSearchConfigModalOpen] = useState(false);
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [isTasksModalOpen, setIsTasksModalOpen] = useState(false);
   const [catAuthModalData, setCatAuthModalData] = useState<Category | null>(null);
   
   const [editingLink, setEditingLink] = useState<LinkItem | undefined>(undefined);
@@ -2233,6 +2235,18 @@ function App() {
                     <span>文件传输助手</span>
                   </button>
                 </div>
+
+                <div className="px-4">
+                  <button
+                    onClick={() => { setIsTasksModalOpen(true); setSidebarOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                      'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <div className="p-1"><Icon name="CheckSquare" size={18} /></div>
+                    <span>任务管理</span>
+                  </button>
+                </div>
               </>
             )}
             
@@ -3102,6 +3116,12 @@ function App() {
           <TransferModal
             isOpen={isTransferModalOpen}
             onClose={() => setIsTransferModalOpen(false)}
+            authToken={authToken}
+          />
+
+          <TasksModal
+            isOpen={isTasksModalOpen}
+            onClose={() => setIsTasksModalOpen(false)}
             authToken={authToken}
           />
 

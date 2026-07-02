@@ -83,6 +83,16 @@ export interface TransferMessage {
   originalUrl?: string; // 原图URL(下载用)
 }
 
+export interface TaskItem {
+  id: string;
+  project: string;
+  title: string;
+  status: 'in-progress' | 'completed' | 'closed';
+  createdAt: number;
+  completedAt?: number;
+  updatedAt: number;
+}
+
 // 搜索模式类型
 export type SearchMode = 'internal' | 'external';
 
