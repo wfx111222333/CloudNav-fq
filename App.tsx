@@ -1785,18 +1785,27 @@ function App() {
 
     // 全站排序模式
     if (selectedCategory === 'all' && !searchQuery.trim() && allSortMode !== 'category' && allSortMode !== 'manual') {
-      if (allSortMode === 'name') {
-        return result.sort((a, b) => a.title.localeCompare(b.title, 'zh-CN'));
-      }
-      if (allSortMode === 'date') {
-        return result.sort((a, b) => b.createdAt - a.createdAt);
-      }
-      if (allSortMode === 'frequency') {
-        return result.sort((a, b) => (b.clickCount || 0) - (a.clickCount || 0));
-      }
+      const sortByMode = (a: LinkItem, b: LinkItem) => {
+        if (allSortMode === 'name') return a.title.localeCompare(b.title, 'zh-CN');
+        if (allSortMode === 'date') return b.createdAt - a.createdAt;
+        if (allSortMode === 'frequency') return (b.clickCount || 0) - (a.clickCount || 0);
+        return 0;
+      };
+      return result.sort((a, b) => {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return sortByMode(a, b);
+      });
     }
 
     return result.sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      if (a.pinned && b.pinned) {
+        if (a.pinnedOrder !== undefined && b.pinnedOrder !== undefined) return a.pinnedOrder - b.pinnedOrder;
+        if (a.pinnedOrder !== undefined) return -1;
+        if (b.pinnedOrder !== undefined) return 1;
+      }
       const aOrder = a.order !== undefined ? a.order : a.createdAt;
       const bOrder = b.order !== undefined ? b.order : b.createdAt;
       return aOrder - bOrder;
@@ -1994,6 +2003,13 @@ function App() {
         onClick={() => isBatchEditMode && toggleLinkSelection(link.id)}
         onContextMenu={(e) => handleContextMenu(e, link)}
       >
+        {/* 置顶角标 */}
+        {link.pinned && (
+          <div className="absolute top-0 left-0 bg-blue-500 text-white rounded-br-lg rounded-tl-xl px-1.5 py-0.5 text-[10px] font-medium z-10 flex items-center gap-0.5">
+            <Pin size={8} className="fill-white" />
+            <span>置顶</span>
+          </div>
+        )}
         {/* 链接内容 - 垂直布局：图标在上，标题在下 */}
         {isBatchEditMode ? (
           <div className="flex flex-1 min-w-0 overflow-hidden h-full flex-col items-center text-center">
@@ -2064,19 +2080,22 @@ function App() {
           </a>
         )}
 
-        {/* Hover Actions (Absolute Right) - 在批量编辑模式下隐藏 */}
+        {/* Hover Actions (Absolute Top-Right) - 在批量编辑模式下隐藏 */}
         {!isBatchEditMode && (
-          <div className={`flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-blue-50 dark:bg-blue-900/20 backdrop-blur-sm rounded-md p-1 absolute ${
-            isDetailedView ? 'top-3 right-3' : 'top-1/2 -translate-y-1/2 right-2'
-          }`}>
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-blue-50 dark:bg-blue-900/20 backdrop-blur-sm rounded-md p-1 absolute top-1 right-1 z-10">
+              <button 
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(link.id, e); }}
+                  className={`p-1 rounded-md transition-colors ${link.pinned ? 'text-blue-500' : 'text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                  title={link.pinned ? '取消置顶' : '置顶'}
+              >
+                  <Pin size={14} className={link.pinned ? 'fill-blue-500' : ''} />
+              </button>
               <button 
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingLink(link); setIsModalOpen(true); }}
                   className="p-1 text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md"
                   title="编辑"
               >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5a3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97c0-.33-.03-.65-.07-.97l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.08-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.32-.07.64-.07.97c0 .33.03.65.07.97l-2.11 1.63c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.39 1.06.73 1.69.98l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.25 1.17-.59 1.69-.98l2.49 1c.22.08.49 0 .61-.22l2-3.46c.13-.22.07-.49-.12-.64l-2.11-1.63Z" fill="currentColor"/>
-                  </svg>
+                  <Edit2 size={14} />
               </button>
           </div>
         )}
