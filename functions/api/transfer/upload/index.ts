@@ -55,9 +55,7 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
       });
     }
 
-    const fileExtension = file.name.split('.').pop() || '';
-    const baseName = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-    const fileName = `${baseName}.${fileExtension}`;
+    const fileName = file.name;
     const fileBytes = await file.arrayBuffer();
 
     await env.CLOUDNAV_R2.put(fileName, fileBytes, {
@@ -72,7 +70,7 @@ export async function onRequestPost(context: { env: Env; request: Request }) {
     // 存储缩略图（若提供），用于图片显示；原图保留用于下载
     let thumbnailUrl: string | undefined;
     if (isImage && thumbnail) {
-      const thumbName = `${baseName}_thumb.jpg`;
+      const thumbName = `${fileName}_thumb.jpg`;
       const thumbBytes = await thumbnail.arrayBuffer();
       await env.CLOUDNAV_R2.put(thumbName, thumbBytes, {
         httpMetadata: {

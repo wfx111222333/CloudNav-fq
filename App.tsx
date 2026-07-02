@@ -2639,12 +2639,42 @@ function App() {
                     
                     
                     <div className="space-y-6">
+                        {/* 置顶网站区块 */}
+                        {(() => {
+                            const pinnedLinksList = links.filter(l => l.pinned && (authToken || !l.private));
+                            if (pinnedLinksList.length > 0) {
+                                return (
+                                    <div key="pinned">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Pin size={20} className="text-blue-500" />
+                                            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                                                置顶
+                                            </h2>
+                                            <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 rounded-full">
+                                                {pinnedLinksList.length}
+                                            </span>
+                                        </div>
+                                        
+                                        <div className={`grid gap-3 ${
+                                          siteSettings.cardStyle === 'detailed' 
+                                            ? gridClass.detailed
+                                            : gridClass.simple
+                                        }`}>
+                                            {pinnedLinksList.map(link => renderLinkCard(link))}
+                                        </div>
+                                    </div>
+                                );
+                            }
+                            return null;
+                        })()}
+
                         {categories.filter(c => !c.parentId).map(category => {
                             const isLocked = category.password && !unlockedCategoryIds.has(category.id);
                             const categoryLinks = links.filter(l => 
                                 l.categoryId === category.id && 
                                 !isLocked &&
-                                (authToken || !l.private)
+                                (authToken || !l.private) &&
+                                !l.pinned
                             );
                             
                             if (categoryLinks.length === 0) return null;
@@ -2679,7 +2709,8 @@ function App() {
                                                 const subCatLinks = links.filter(l => 
                                                     l.categoryId === subCat.id && 
                                                     !subCatLocked &&
-                                                    (authToken || !l.private)
+                                                    (authToken || !l.private) &&
+                                                    !l.pinned
                                                 );
                                                 
                                                 if (subCatLinks.length === 0) return null;

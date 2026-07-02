@@ -37,7 +37,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, authToken }) =
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterProject, setFilterProject] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterStatus, setFilterStatus] = useState('in-progress');
 
   const [isEditing, setIsEditing] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskItem | null>(null);
