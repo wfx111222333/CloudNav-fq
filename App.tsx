@@ -43,7 +43,7 @@ import QRCodeModal from './components/QRCodeModal';
 
 // --- 配置项 ---
 // 项目核心仓库地址
-const GITHUB_REPO_URL = 'https://github.com/aabacada/CloudNav-fq';
+const GITHUB_REPO_URL = 'https://github.com/wfx111222333/CloudNav-fq';
 
 const LOCAL_STORAGE_KEY = 'cloudnav_data_cache';
 const AUTH_KEY = 'cloudnav_auth_token';
