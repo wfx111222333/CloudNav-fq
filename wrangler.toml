@@ -1,8 +1,13 @@
-name = "nav-fq-worker"
-master = "_worker.js"
-compatibility_date = "2026-06-29"
+# KV绑定
+[[kv_namespaces]]
+binding = "CLOUDNAV_KV"
+id = "e1a0690745fc4b8590bc53bfe37564e8"
 
-# 静态资源目录，对应打包输出dist
-[site]
-bucket = "./dist"
+# R2绑定
+[[r2_buckets]]
+binding = "CLOUDNAV_R2"
+bucket_name = "dh-wj"
 
+[[r2_buckets]]
+binding = "TRANSFER_R2_xxx"
+bucket_name = "dh-wj"
