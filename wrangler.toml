@@ -6,16 +6,3 @@ compatibility_date = "2026-06-29"
 [site]
 bucket = "./dist"
 
-# 对应你Pages绑定的KV命名空间
-[[kv_namespaces]]
-binding = "CLOUDNAV_KV"
-id = "CLOUDNAV_DB"
-
-# 对应R2存储桶
-[[r2_buckets]]
-binding = "CLOUDNAV_R2"
-bucket_name = "dh-wj"
-
-[[r2_buckets]]
-binding = "TRANSFER_R2_BUCKET"
-bucket_name = "dh-wj"
